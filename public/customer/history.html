@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction History — PaySim</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="dashboard-wrapper">
+        <nav class="sidebar">
+            <div class="brand"><i class="bi bi-shield-lock-fill"></i> PaySim</div>
+            <div class="nav-section">
+                <p class="section-title">Home</p>
+                <a href="dashboard.html" class="nav-link"><i class="bi bi-house-door"></i> Home</a>
+            </div>
+            <div class="nav-section">
+                <p class="section-title">Payments</p>
+                <a href="pay.html" class="nav-link"><i class="bi bi-send"></i> Make Payment</a>
+                <a href="history.html" class="nav-link active"><i class="bi bi-clock-history"></i> Transactions</a>
+            </div>
+            <div class="nav-section">
+                <p class="section-title">Banking</p>
+                <a href="methods.html" class="nav-link"><i class="bi bi-credit-card"></i> My Methods</a>
+                <a href="add-method.html" class="nav-link"><i class="bi bi-plus-circle"></i> Add Method</a>
+            </div>
+            <div class="nav-section">
+                <p class="section-title">Settings</p>
+                <a href="profile.html" class="nav-link"><i class="bi bi-person-circle"></i> My Profile</a>
+            </div>
+            <div class="nav-section" style="margin-top: auto;">
+                <a href="#" class="nav-link" onclick="logout()"><i class="bi bi-box-arrow-left"></i> Logout</a>
+            </div>
+        </nav>
+
+        <div class="main-content">
+            <div class="topbar">
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-sm btn-outline-secondary d-md-none" id="sidebarToggle"><i
+                            class="bi bi-list"></i></button>
+                    <h1 class="page-title">Transaction History</h1>
+                </div>
+                <div class="user-info">
+                    <div class="theme-toggle me-2" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+                        <i class="bi bi-moon-fill"></i>
+                    </div>
+                    <span id="userName"></span>
+                    <div class="user-avatar" id="userAvatar">C</div>
+                </div>
+            </div>
+            <div class="content-area">
+                <div class="data-card">
+                    <div class="card-header flex-column align-items-start gap-3">
+                        <div class="d-flex justify-content-between w-100">
+                            <h5><i class="bi bi-clock-history me-2"></i>All Transactions</h5>
+                            <span class="text-muted" id="totalCount"></span>
+                        </div>
+                        <div class="row g-2 w-100">
+                            <div class="col-md-3">
+                                <select id="statusFilter" class="form-select form-select-sm" onchange="resetAndLoad()">
+                                    <option value="">All Statuses</option>
+                                    <option value="success">Success</option>
+                                    <option value="failed">Failed</option>
+                                    <option value="pending">Pending</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select id="modeFilter" class="form-select form-select-sm" onchange="resetAndLoad()">
+                                    <option value="">All Modes</option>
+                                    <option value="platform">Platform</option>
+                                    <option value="simulator">Simulator</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <select id="limitFilter" class="form-select form-select-sm" onchange="resetAndLoad()">
+                                    <option value="15">15 per page</option>
+                                    <option value="30">30 per page</option>
+                                    <option value="50">50 per page</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Txn ID</th>
+                                    <th>Method</th>
+                                    <th>Amount</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Mode</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="txnBody">
+                                <tr>
+                                <tr>
+                                    <td colspan="7"><span class="skeleton skeleton-text"></span></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="7"><span class="skeleton skeleton-text"></span></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="7"><span class="skeleton skeleton-text"></span></td>
+                                </tr>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center p-3 border-top">
+                        <button class="btn btn-sm btn-outline-secondary" id="prevBtn" onclick="changePage(-1)"
+                            disabled>← Previous</button>
+                        <span id="pageInfo" class="text-muted small"></span>
+                        <button class="btn btn-sm btn-outline-secondary" id="nextBtn" onclick="changePage(1)">Next
+                            →</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/app.js"></script>
+    <script>
+        if (!requireAuth()) throw 'redirect';
+        let currentPage = 1;
+        const pageSize = 15;
+
+        async function loadTransactions() {
+            const status = document.getElementById('statusFilter').value;
+            const mode = document.getElementById('modeFilter').value;
+            const limit = document.getElementById('limitFilter').value;
+
+            let url = `/dashboard/transactions?page=${currentPage}&limit=${limit}`;
+            if (status) url += `&status=${status}`;
+            if (mode) url += `&mode=${mode}`;
+
+            const { ok, data } = await api('GET', url);
+            const tbody = document.getElementById('txnBody');
+
+            if (!ok || data.data.transactions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No transactions found</td></tr>';
+                return;
+            }
+
+            const { transactions, pagination } = data.data;
+            const limitNum = parseInt(limit);
+
+            document.getElementById('totalCount').textContent = `${pagination.total} total`;
+            document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${Math.ceil(pagination.total / limitNum) || 1}`;
+            document.getElementById('prevBtn').disabled = currentPage <= 1;
+            document.getElementById('nextBtn').disabled = currentPage >= Math.ceil(pagination.total / limitNum);
+
+            tbody.innerHTML = transactions.map(t => `
+            <tr>
+                <td class="text-mono">${t.txn_id.substring(0, 8)}...</td>
+                <td><i class="bi ${methodIcon(t.method_type)} me-1"></i> ${t.method_type.replace(/_/g, ' ')}</td>
+                <td class="fw-600">${formatCurrency(t.amount)}</td>
+                <td>${t.txn_type}</td>
+                <td>${statusBadge(t.status)}</td>
+                <td><span class="badge ${t.mode === 'simulator' ? 'bg-secondary' : 'bg-primary'}">${t.mode}</span></td>
+                <td>${formatDate(t.created_at)}</td>
+            </tr>
+        `).join('');
+        }
+
+        function resetAndLoad() {
+            currentPage = 1;
+            loadTransactions();
+        }
+
+        function changePage(delta) {
+            currentPage += delta;
+            loadTransactions();
+        }
+
+        loadTransactions();
+    </script>
+</body>
+
+</html>

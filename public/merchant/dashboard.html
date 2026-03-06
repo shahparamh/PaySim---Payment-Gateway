@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Merchant Dashboard — PaySim</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div class="dashboard-wrapper">
+        <nav class="sidebar">
+            <div class="brand"><i class="bi bi-shield-lock-fill"></i> PaySim</div>
+            <div class="nav-section">
+                <p class="section-title">Home</p>
+                <a href="dashboard.html" class="nav-link active"><i class="bi bi-house-door"></i> Home</a>
+            </div>
+            <div class="nav-section">
+                <p class="section-title">Payment Products</p>
+                <a href="transactions.html" class="nav-link"><i class="bi bi-arrow-left-right"></i> Transactions</a>
+                <a href="#" class="nav-link"><i class="bi bi-link-45deg"></i> Payment Links</a>
+                <a href="#" class="nav-link"><i class="bi bi-credit-card-2-front"></i> Subscriptions</a>
+            </div>
+            <div class="nav-section">
+                <p class="section-title">Banking Products</p>
+                <a href="api-keys.html" class="nav-link"><i class="bi bi-key"></i> API Keys</a>
+                <a href="apps.html" class="nav-link"><i class="bi bi-box"></i> Apps</a>
+                <a href="analytics.html" class="nav-link"><i class="bi bi-graph-up"></i> Analytics</a>
+            </div>
+            <div class="nav-section" style="margin-top: auto;">
+                <a href="#" class="nav-link" onclick="logout()"><i class="bi bi-box-arrow-left"></i> Logout</a>
+            </div>
+        </nav>
+
+        <div class="main-content">
+            <div class="topbar">
+                <h1 class="page-title">Merchant Dashboard</h1>
+                <div class="user-info">
+                    <div class="theme-toggle me-2" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+                        <i class="bi bi-moon-fill"></i>
+                    </div>
+                    <span id="userName"></span>
+                    <div class="user-avatar" id="userAvatar">M</div>
+                </div>
+            </div>
+            <div class="content-area">
+                <div class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <div class="data-card p-3 hover-lift h-100">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-secondary" style="font-size: 0.85rem; font-weight: 500;">Collected
+                                    Amount</span>
+                                <i class="bi bi-info-circle text-secondary" style="font-size: 0.85rem;"></i>
+                            </div>
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <h3 class="fw-bold mb-0" style="color: #1e293b;" id="statRevenue"><span class="skeleton"
+                                        style="width: 80px;"></span></h3>
+                                <span class="text-danger mt-1" style="font-size: 0.75rem; font-weight: 600;"><i
+                                        class="bi bi-caret-down-fill" style="font-size: 0.65rem;"></i> 52%</span>
+                            </div>
+                            <p class="text-secondary mb-0 mt-2" style="font-size: 0.75rem;">₹67.00 less than yesterday
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="data-card p-3 hover-lift h-100">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-secondary"
+                                    style="font-size: 0.85rem; font-weight: 500;">Refunds</span>
+                                <i class="bi bi-info-circle text-secondary" style="font-size: 0.85rem;"></i>
+                            </div>
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <h3 class="fw-bold mb-0" style="color: #1e293b;">₹8.00</h3>
+                                <span class="text-success mt-1" style="font-size: 0.75rem; font-weight: 600;"><i
+                                        class="bi bi-caret-down-fill" style="font-size: 0.65rem;"></i> 27%</span>
+                            </div>
+                            <p class="text-secondary mb-0 mt-2" style="font-size: 0.75rem;">₹3.00 less than yesterday
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="data-card p-3 hover-lift h-100">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-secondary" style="font-size: 0.85rem; font-weight: 500;">Orders</span>
+                                <i class="bi bi-info-circle text-secondary" style="font-size: 0.85rem;"></i>
+                            </div>
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <h3 class="fw-bold mb-0" style="color: #1e293b;" id="statTotal"><span class="skeleton"
+                                        style="width: 40px;"></span></h3>
+                                <span class="text-danger mt-1" style="font-size: 0.75rem; font-weight: 600;"><i
+                                        class="bi bi-caret-down-fill" style="font-size: 0.65rem;"></i> 0%</span>
+                            </div>
+                            <p class="text-secondary mb-0 mt-2" style="font-size: 0.75rem;">54.20 more than yesterday
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="data-card p-3 hover-lift h-100 border-primary" style="background-color: #fff;">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-primary" style="font-size: 0.85rem; font-weight: 500;">Account
+                                    Status</span>
+                                <span class="badge bg-success" style="font-size: 0.6rem;">LIVE</span>
+                            </div>
+                            <h4 class="fw-bold mb-1 mt-2" style="color: #1e293b;">Active</h4>
+                            <p class="text-secondary mb-0" style="font-size: 0.75rem;">Verified Business Profile</p>
+                            <!-- Hidden elements for script compatibility if needed -->
+                            <span id="statSuccess" class="d-none">0</span>
+                            <span id="statFailed" class="d-none">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payments Overview Chart -->
+                <div class="data-card mb-4 p-4 border-0 shadow-sm" style="border-radius: 12px; background: #fff;">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="fw-semibold m-0" style="color: #1e293b;">Payments Overview</h5>
+                        <select class="form-select form-select-sm w-auto shadow-none"
+                            style="border-color: #e2e8f0; color: #1e293b; font-size: 0.8rem; border-radius: 6px; padding-top: 0.35rem; padding-bottom: 0.35rem;">
+                            <option>Today</option>
+                            <option>Last 30 days</option>
+                        </select>
+                    </div>
+                    <div class="chart-container" style="height: 280px;">
+                        <canvas id="paymentsChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <!-- Recent Transactions -->
+                    <div class="col-lg-7">
+                        <div class="data-card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Recent Transactions</h5>
+                                <a href="transactions.html" class="btn btn-sm btn-link text-decoration-none p-0">View
+                                    All</a>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Txn ID</th>
+                                            <th>Amount</th>
+                                            <th>Status</th>
+                                            <th>Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="txnBody">
+                                        <tr>
+                                            <td colspan="4"><span class="skeleton skeleton-text"></span></td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="4"><span class="skeleton skeleton-text"></span></td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="4"><span class="skeleton skeleton-text"></span></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="col-lg-5">
+                        <div class="data-card mb-3">
+                            <div class="card-header">
+                                <h5>Quick Actions</h5>
+                            </div>
+                            <div style="padding: 1.25rem;">
+                                <a href="apps.html" class="btn btn-primary w-100 mb-2"><i
+                                        class="bi bi-plus-circle me-1"></i> Register New App</a>
+                                <a href="api-keys.html" class="btn btn-outline-primary w-100 mb-2"><i
+                                        class="bi bi-key me-1"></i> Manage API Keys</a>
+                                <a href="analytics.html" class="btn btn-outline-secondary w-100"><i
+                                        class="bi bi-graph-up me-1"></i> View Analytics</a>
+                            </div>
+                        </div>
+                        <div class="data-card">
+                            <div class="card-header">
+                                <h5>Recent Sessions</h5>
+                            </div>
+                            <div id="sessionsList" style="padding: 1rem;">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/app.js"></script>
+    <script>
+        if (!requireAuth()) throw 'redirect';
+
+        async function loadDashboard() {
+            const { ok, data } = await api('GET', '/platform/dashboard');
+            if (!ok) return;
+
+            const s = data.data.stats;
+            const elTotal = document.getElementById('statTotal');
+            const elSuccess = document.getElementById('statSuccess');
+            const elFailed = document.getElementById('statFailed');
+            const elRevenue = document.getElementById('statRevenue');
+
+            if (elTotal) elTotal.textContent = s.total_transactions || 0;
+            if (elSuccess) elSuccess.textContent = s.successful || 0;
+            if (elFailed) elFailed.textContent = s.failed || 0;
+            if (elRevenue) elRevenue.textContent = formatCurrency(s.total_revenue || 0);
+
+            // Recent Transactions
+            const tbody = document.getElementById('txnBody');
+            const txns = data.data.recent_transactions || [];
+            tbody.innerHTML = txns.length > 0
+                ? txns.map(t => `<tr>
+                <td class="text-mono">${t.txn_id.substring(0, 8)}...</td>
+                <td class="fw-600">${formatCurrency(t.amount)}</td>
+                <td>${statusBadge(t.status)}</td>
+                <td>${formatDate(t.created_at)}</td>
+            </tr>`).join('')
+                : '<tr><td colspan="4" class="text-center text-muted py-4">No transactions yet</td></tr>';
+
+            // Sessions
+            const sessions = data.data.recent_sessions || [];
+            document.getElementById('sessionsList').innerHTML = sessions.length > 0
+                ? sessions.map(s => `<div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                <div><small class="text-mono">${s.session_id.substring(0, 8)}...</small><br><small class="text-muted">${formatCurrency(s.amount)}</small></div>
+                ${statusBadge(s.status)}
+            </div>`).join('')
+                : '<p class="text-muted">No sessions yet</p>';
+
+            if (data.data.chart) {
+                initChart(data.data.chart);
+            } else {
+                initChart();
+            }
+        }
+
+        function initChart(chartData) {
+            const labels = chartData?.labels || ['May 09', 'May 10', 'May 11', 'May 12', 'May 13', 'May 14', 'May 15'];
+            const todayStat = chartData?.this_week || [12, 19, 3, 5, 42, 18, 11];
+            const yesterdayStat = chartData?.last_week || [8, 12, 8, 15, 23, 28, 18];
+
+            const ctx = document.getElementById('paymentsChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Today',
+                        data: todayStat,
+                        borderColor: '#528ff0',
+                        backgroundColor: 'rgba(82, 143, 240, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#fff',
+                        pointBorderColor: '#528ff0',
+                        pointBorderWidth: 2
+                    }, {
+                        label: 'Yesterday',
+                        data: yesterdayStat,
+                        borderColor: '#cbd5e1',
+                        borderDash: [5, 5],
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            border: { display: false },
+                            grid: { color: '#f1f5f9', drawTicks: false },
+                            ticks: { padding: 10, font: { size: 11 }, color: '#64748b' }
+                        },
+                        x: {
+                            border: { display: false },
+                            grid: { display: false },
+                            ticks: { padding: 8, font: { size: 11 }, color: '#64748b' }
+                        }
+                    }
+                }
+            });
+        }
+
+        loadDashboard();
+    </script>
+</body>
+
+</html>

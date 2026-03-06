@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Key Management — PaySim</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="dashboard-wrapper">
+        <nav class="sidebar">
+            <div class="brand"><i class="bi bi-shield-lock-fill"></i> PaySim</div>
+            <div class="nav-section">
+                <p class="section-title">Home</p>
+                <a href="dashboard.html" class="nav-link"><i class="bi bi-house-door"></i> Home</a>
+            </div>
+            <div class="nav-section">
+                <p class="section-title">Payment Products</p>
+                <a href="transactions.html" class="nav-link"><i class="bi bi-arrow-left-right"></i> Transactions</a>
+                <a href="#" class="nav-link disabled"><i class="bi bi-link-45deg"></i> Payment Links</a>
+                <a href="#" class="nav-link disabled"><i class="bi bi-credit-card-2-front"></i> Subscriptions</a>
+            </div>
+            <div class="nav-section">
+                <p class="section-title">Banking Products</p>
+                <a href="api-keys.html" class="nav-link"><i class="bi bi-key"></i> API Keys</a>
+                <a href="apps.html" class="nav-link"><i class="bi bi-box"></i> Apps</a>
+                <a href="analytics.html" class="nav-link"><i class="bi bi-graph-up"></i> Analytics</a>
+            </div>
+            <div class="nav-section" style="margin-top: auto;">
+                <a href="#" class="nav-link" onclick="logout()"><i class="bi bi-box-arrow-left"></i> Logout</a>
+            </div>
+        </nav>
+
+        <div class="main-content">
+            <div class="topbar">
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-sm btn-outline-secondary d-md-none" id="sidebarToggle"><i
+                            class="bi bi-list"></i></button>
+                    <h1 class="page-title">API Key Management</h1>
+                </div>
+                <div class="user-info">
+                    <div class="theme-toggle me-2" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+                        <i class="bi bi-moon-fill"></i>
+                    </div>
+                    <span id="userName"></span>
+                    <div class="user-avatar" id="userAvatar">M</div>
+                </div>
+            </div>
+            <div class="content-area">
+                <!-- Existing Keys -->
+                <div class="data-card mb-4">
+                    <div class="card-header">
+                        <h5><i class="bi bi-key me-2"></i>Your API Keys</h5>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Prefix</th>
+                                    <th>Type</th>
+                                    <th>App</th>
+                                    <th>Environment</th>
+                                    <th>Status</th>
+                                    <th>Last Used</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody id="keysBody">
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-4">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- New Key Alert -->
+                <div class="alert alert-warning d-none" id="newKeyAlert">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    <strong>New API Key Generated!</strong> Copy it now — it won't be shown again.<br>
+                    <code class="d-block mt-2 p-2 bg-dark text-light rounded" id="newKeyValue"
+                        style="font-size: 0.85rem; word-break: break-all;"></code>
+                    <button class="btn btn-sm btn-outline-dark mt-2" onclick="copyKey()"><i
+                            class="bi bi-clipboard me-1"></i> Copy</button>
+                </div>
+
+                <!-- Generate Key -->
+                <div class="data-card" style="max-width: 500px;">
+                    <div class="card-header">
+                        <h5>Generate New Key</h5>
+                    </div>
+                    <div style="padding: 1.25rem;">
+                        <form onsubmit="generateKey(event)">
+                            <div class="mb-3">
+                                <label class="form-label">Merchant App ID</label>
+                                <input type="number" class="form-control" id="keyAppId" required
+                                    placeholder="Enter your app ID">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Key Type</label>
+                                <select class="form-select" id="keyType">
+                                    <option value="secret">Secret Key (sk_)</option>
+                                    <option value="publishable">Publishable Key (pk_)</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i>
+                                Generate Key</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/app.js"></script>
+    <script>
+        if (!requireAuth()) throw 'redirect';
+
+        async function loadKeys() {
+            const { ok, data } = await api('GET', '/platform/api-keys');
+            const tbody = document.getElementById('keysBody');
+            if (!ok || data.data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No API keys yet. Register an app first.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.data.map(k => `
+            <tr>
+                <td class="text-mono">${k.key_prefix}...</td>
+                <td><span class="badge ${k.key_type === 'secret' ? 'bg-danger' : 'bg-info'}">${k.key_type}</span></td>
+                <td>${k.app_name}</td>
+                <td><span class="badge ${k.environment === 'production' ? 'bg-success' : 'bg-secondary'}">${k.environment}</span></td>
+                <td>${k.is_active ? '<span class="badge-status badge-success">active</span>' : '<span class="badge-status badge-failed">inactive</span>'}</td>
+                <td>${k.last_used_at ? formatDate(k.last_used_at) : '—'}</td>
+                <td>${formatDate(k.created_at)}</td>
+            </tr>
+        `).join('');
+        }
+
+        async function generateKey(e) {
+            e.preventDefault();
+            const { ok, data } = await api('POST', '/platform/api-keys', {
+                merchant_app_id: parseInt(document.getElementById('keyAppId').value),
+                key_type: document.getElementById('keyType').value
+            });
+
+            if (ok) {
+                document.getElementById('newKeyAlert').classList.remove('d-none');
+                document.getElementById('newKeyValue').textContent = data.data.key;
+                showToast('API key generated!', 'success');
+                loadKeys();
+            } else {
+                showToast(data.error?.message || 'Failed to generate key', 'danger');
+            }
+        }
+
+        function copyKey() {
+            navigator.clipboard.writeText(document.getElementById('newKeyValue').textContent);
+            showToast('Key copied to clipboard', 'info');
+        }
+
+        loadKeys();
+    </script>
+</body>
+
+</html>

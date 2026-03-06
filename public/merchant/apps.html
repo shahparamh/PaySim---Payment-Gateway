@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Merchant Apps — PaySim</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="dashboard-wrapper">
+        <nav class="sidebar">
+            <div class="brand"><i class="bi bi-shield-lock-fill"></i> PaySim</div>
+            <div class="nav-section">
+                <p class="section-title">Home</p>
+                <a href="dashboard.html" class="nav-link"><i class="bi bi-house-door"></i> Home</a>
+            </div>
+            <div class="nav-section">
+                <p class="section-title">Payment Products</p>
+                <a href="transactions.html" class="nav-link"><i class="bi bi-arrow-left-right"></i> Transactions</a>
+                <a href="#" class="nav-link disabled"><i class="bi bi-link-45deg"></i> Payment Links</a>
+                <a href="#" class="nav-link disabled"><i class="bi bi-credit-card-2-front"></i> Subscriptions</a>
+            </div>
+            <div class="nav-section">
+                <p class="section-title">Banking Products</p>
+                <a href="api-keys.html" class="nav-link"><i class="bi bi-key"></i> API Keys</a>
+                <a href="apps.html" class="nav-link"><i class="bi bi-box"></i> Apps</a>
+                <a href="analytics.html" class="nav-link"><i class="bi bi-graph-up"></i> Analytics</a>
+            </div>
+            <div class="nav-section" style="margin-top: auto;">
+                <a href="#" class="nav-link" onclick="logout()"><i class="bi bi-box-arrow-left"></i> Logout</a>
+            </div>
+        </nav>
+
+        <div class="main-content">
+            <div class="topbar">
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-sm btn-outline-secondary d-md-none" id="sidebarToggle"><i
+                            class="bi bi-list"></i></button>
+                    <h1 class="page-title">Merchant Apps</h1>
+                </div>
+                <div class="user-info">
+                    <div class="theme-toggle me-2" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+                        <i class="bi bi-moon-fill"></i>
+                    </div>
+                    <span id="userName"></span>
+                    <div class="user-avatar" id="userAvatar">M</div>
+                </div>
+            </div>
+            <div class="content-area">
+                <div class="row">
+                    <div class="col-lg-7">
+                        <!-- New Key Alert -->
+                        <div class="alert alert-warning d-none mb-3" id="newAppAlert">
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            <strong>App Registered!</strong> Your API key is shown below — copy it now:<br>
+                            <code class="d-block mt-2 p-2 bg-dark text-light rounded" id="newAppKey"
+                                style="word-break: break-all;"></code>
+                            <button class="btn btn-sm btn-outline-dark mt-2"
+                                onclick="navigator.clipboard.writeText(document.getElementById('newAppKey').textContent); showToast('Copied!', 'info')">
+                                <i class="bi bi-clipboard me-1"></i> Copy Key
+                            </button>
+                        </div>
+
+                        <!-- Register App Form -->
+                        <div class="data-card">
+                            <div class="card-header">
+                                <h5>Register New App</h5>
+                            </div>
+                            <div style="padding: 1.25rem;">
+                                <form onsubmit="registerApp(event)">
+                                    <div class="mb-3">
+                                        <label class="form-label">App Name</label>
+                                        <input type="text" class="form-control" id="appName" required
+                                            placeholder="My Payment App">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Website URL</label>
+                                        <input type="url" class="form-control" id="appUrl"
+                                            placeholder="https://myapp.com">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Callback URL (Webhook)</label>
+                                        <input type="url" class="form-control" id="appCallback" required
+                                            placeholder="https://myapp.com/webhooks/payment">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Environment</label>
+                                        <select class="form-select" id="appEnv">
+                                            <option value="sandbox">Sandbox</option>
+                                            <option value="production">Production</option>
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i>
+                                        Register App</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-5">
+                        <div class="data-card">
+                            <div class="card-header">
+                                <h5>Integration Guide</h5>
+                            </div>
+                            <div style="padding: 1.25rem;">
+                                <ol class="mb-0" style="font-size: 0.875rem; color: var(--gray-700);">
+                                    <li class="mb-2">Register your app to get an API key</li>
+                                    <li class="mb-2">Use <code>x-api-key</code> header in API requests</li>
+                                    <li class="mb-2">Create a payment session via POST
+                                        <code>/create-payment-session</code>
+                                    </li>
+                                    <li class="mb-2">Redirect customer to the <code>checkout_url</code></li>
+                                    <li class="mb-2">Customer selects method and pays</li>
+                                    <li class="mb-2">Receive webhook at your callback URL</li>
+                                    <li>Verify status via GET <code>/payment-status</code></li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/app.js"></script>
+    <script>
+        if (!requireAuth()) throw 'redirect';
+
+        async function registerApp(e) {
+            e.preventDefault();
+            const { ok, data } = await api('POST', '/platform/register-app', {
+                app_name: document.getElementById('appName').value,
+                website_url: document.getElementById('appUrl').value || undefined,
+                callback_url: document.getElementById('appCallback').value,
+                environment: document.getElementById('appEnv').value
+            });
+
+            if (ok) {
+                document.getElementById('newAppAlert').classList.remove('d-none');
+                document.getElementById('newAppKey').textContent = data.data.api_key;
+                showToast(`App "${data.data.app_name}" registered!`, 'success');
+            } else {
+                showToast(data.error?.message || 'Registration failed', 'danger');
+            }
+        }
+    </script>
+</body>
+
+</html>
