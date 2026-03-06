@@ -20,7 +20,7 @@ exports.validate = (req, res, next) => {
 exports.loginSchema = [
     body('email').isEmail().withMessage('Please provide a valid email'),
     body('password').notEmpty().withMessage('Password is required'),
-    body('role').isIn(['customer', 'merchant', 'admin']).withMessage('Invalid role selected')
+    body('type').isIn(['customer', 'merchant', 'admin']).withMessage('Invalid type selected')
 ];
 
 exports.registerSchema = [
