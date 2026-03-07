@@ -140,15 +140,18 @@ class TransactionService {
         if (!session) {
             throw Object.assign(new Error('Session not found'), { statusCode: 404 });
         }
-        if (session.status !== 'pending') {
-            throw Object.assign(new Error(`Session is ${session.status}`), { statusCode: 400 });
-        }
 
         const amount = parseFloat(session.amount);
         const threshold = parseFloat(process.env.MIN_HIGH_VALUE_TRANSACTION) || 100000;
         const metadata = typeof session.metadata === 'string'
             ? JSON.parse(session.metadata)
             : (session.metadata || {});
+
+        const isReusable = metadata.is_payment_link === true && metadata.is_reusable === true;
+
+        if (session.status !== 'pending' && !isReusable) {
+            throw Object.assign(new Error(`Session is ${session.status}`), { statusCode: 400 });
+        }
 
         const isHighValue = amount >= threshold;
         const isForcedOtp = metadata.force_otp === true;
@@ -213,7 +216,7 @@ class TransactionService {
                 where: { session_id: sessionId }
             });
 
-            if (!lockedSession || lockedSession.status !== 'pending') {
+            if (!lockedSession || (lockedSession.status !== 'pending' && !isReusable)) {
                 throw Object.assign(new Error(`Session is ${lockedSession?.status || 'invalid'}`), { statusCode: 400 });
             }
 
@@ -278,6 +281,33 @@ class TransactionService {
                 verified_at: new Date()
             });
 
+            // 5. Handle Subscription Creation (for Plan Links)
+            if (metadata && metadata.is_subscription === true && metadata.plan_id) {
+                const planRepo = queryRunner.manager.getRepository(subscription_plans);
+                const subRepo = queryRunner.manager.getRepository(subscriptions);
+
+                const plan = await planRepo.findOneBy({ id: parseInt(metadata.plan_id) });
+                if (plan) {
+                    const nextBilling = new Date();
+                    if (plan.billing_interval === 'monthly') nextBilling.setMonth(nextBilling.getMonth() + 1);
+                    else if (plan.billing_interval === 'yearly') nextBilling.setFullYear(nextBilling.getFullYear() + 1);
+                    else if (plan.billing_interval === 'weekly') nextBilling.setDate(nextBilling.getDate() + 7);
+                    else nextBilling.setMonth(nextBilling.getMonth() + 1);
+
+                    await subRepo.save({
+                        subscription_id: `sub_${uuidv4().substring(0, 8)}`,
+                        customer_id: customerId,
+                        merchant_id: session.merchant_id,
+                        plan_id: plan.id,
+                        status: 'active',
+                        next_billing_date: nextBilling,
+                        payment_method_id: paymentMethodId,
+                        last_payment_date: new Date()
+                    });
+                    console.log(`[Subscription] Auto-enrolled customer ${customerId} to plan ${plan.id} via payment link.`);
+                }
+            }
+
             // 5. Load metadata for advanced features
             // (metadata is already parsed at the top of the function)
 
@@ -300,9 +330,16 @@ class TransactionService {
             }
 
             // 7. Finalize session
-            await queryRunner.manager.update(payment_sessions, { id: session.id }, {
-                status: 'completed'
-            });
+            if (!isReusable) {
+                await queryRunner.manager.update(payment_sessions, { id: session.id }, {
+                    status: 'completed'
+                });
+            } else {
+                // Reusable links stay available for next customer
+                await queryRunner.manager.update(payment_sessions, { id: session.id }, {
+                    status: 'pending'
+                });
+            }
 
             await queryRunner.commitTransaction();
 

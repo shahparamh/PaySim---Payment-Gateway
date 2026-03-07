@@ -528,6 +528,25 @@ exports.getApiKeys = async (req, res, next) => {
 };
 
 // ────────────────────────────────────────────────────────
+// GET /platform/apps
+// ────────────────────────────────────────────────────────
+
+exports.getApps = async (req, res, next) => {
+    try {
+        const merchantId = req.user.id;
+        const appRepo = AppDataSource.getRepository(merchant_apps);
+        const apps = await appRepo.find({
+            where: { merchant_id: merchantId },
+            order: { created_at: 'DESC' }
+        });
+
+        res.json(success('Merchant apps retrieved', apps));
+    } catch (err) {
+        next(err);
+    }
+};
+
+// ────────────────────────────────────────────────────────
 // GET /platform/dashboard
 // ────────────────────────────────────────────────────────
 

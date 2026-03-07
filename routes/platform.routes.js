@@ -59,6 +59,9 @@ router.post('/api-keys', authenticate, platformController.createApiKey);
 // GET /api/v1/platform/api-keys
 router.get('/api-keys', authenticate, platformController.getApiKeys);
 
+// GET /api/v1/platform/apps
+router.get('/apps', authenticate, platformController.getApps);
+
 router.get('/seed-demo', async (req, res) => {
     try {
         const AppDataSource = require('../config/database');
@@ -145,6 +148,10 @@ router.get('/debug-dashboard', async (req, res, next) => {
 });
 
 // ── Merchant Dashboard (JWT authenticated) ──────────────
+
+// POST /api/v1/platform/process-link-payment (Public guest checkout)
+const simulatorController = require('../controllers/simulator.controller');
+router.post('/process-link-payment', simulatorController.processGuestPayment);
 
 // GET /api/v1/platform/dashboard
 router.get('/dashboard', authenticate, platformController.getDashboard);

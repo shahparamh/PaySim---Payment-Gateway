@@ -142,3 +142,99 @@ exports.getReceivers = async (req, res, next) => {
         next(err);
     }
 };
+
+/**
+ * POST /api/v1/platform/process-link-payment
+ * Public unauthenticated guest checkout for Payment Links
+ */
+exports.processGuestPayment = async (req, res, next) => {
+    try {
+        const { session_id, email, method_type, details } = req.body;
+        const AppDataSource = require('../config/database');
+        const crypto = require('crypto');
+        const { v4: uuidv4 } = require('uuid');
+        const { customers, credit_cards, bank_accounts, payment_methods } = require('../src/entities');
+        const transactionService = require('../services/transaction.service');
+
+        if (!session_id || !email) {
+            return res.status(400).json(error('VALIDATION', 'session_id and email are required for guest checkout'));
+        }
+
+        // 1. Find or create guest customer
+        const customerRepo = AppDataSource.getRepository(customers);
+        let guest = await customerRepo.findOneBy({ email });
+        if (!guest) {
+            guest = await customerRepo.save({
+                uuid: uuidv4(),
+                first_name: 'Guest',
+                last_name: 'Customer',
+                email: email,
+                password_hash: 'guest_bypass',
+                status: 'active'
+            });
+        }
+        const customerId = guest.id;
+
+        // 2. Create Temporary Payment Instrument
+        let instrumentId;
+        if (method_type === 'card') {
+            const cardRepo = AppDataSource.getRepository(credit_cards);
+            const card = await cardRepo.save({
+                customer_id: customerId,
+                card_number_hash: crypto.createHash('sha256').update(details.card_number || '4242424242424242').digest('hex'),
+                card_last_four: details.last4 || '4242',
+                card_brand: details.brand || 'visa',
+                cardholder_name: details.cardholder_name || 'Guest',
+                expiry_month: details.expiry_month || '12',
+                expiry_year: details.expiry_year || '2030',
+                credit_limit: 1000000,
+                used_credit: 0
+            });
+            instrumentId = card.id;
+        } else {
+            const bankRepo = AppDataSource.getRepository(bank_accounts);
+            const bankAccount = await bankRepo.save({
+                customer_id: customerId,
+                account_number_hash: crypto.createHash('sha256').update(details.upi_id || details.bank || 'guest_account').digest('hex'),
+                account_last_four: '9999',
+                bank_name: details.bank || 'UPI Central',
+                ifsc_code: 'GUEST0001',
+                account_holder_name: details.account_holder_name || 'Guest',
+                balance: 1000000
+            });
+            instrumentId = bankAccount.id;
+        }
+
+        // Create the payment method bridge
+        const methodRepo = AppDataSource.getRepository(payment_methods);
+        const method = await methodRepo.save({
+            customer_id: customerId,
+            method_type: method_type === 'card' ? 'credit_card' : 'bank_account',
+            instrument_id: instrumentId,
+            is_default: false,
+            status: 'active'
+        });
+
+        // 3. Process Payment via Transaction Service
+        const result = await transactionService.processPayment({
+            sessionId: session_id,
+            customerId: customerId,
+            paymentMethodId: method.id,
+            mode: 'platform',
+            pin: 'SECRET_BYPASS' // Bypass PIN for public links
+        });
+
+        if (result.status === 'success') {
+            res.status(200).json(success('Payment link processed successfully', {
+                txn_id: result.txn_id,
+                amount: result.amount,
+                status: result.status
+            }));
+        } else {
+            res.status(400).json(error('PAYMENT_FAILED', result.failure_reason, result));
+        }
+
+    } catch (err) {
+        next(err);
+    }
+};

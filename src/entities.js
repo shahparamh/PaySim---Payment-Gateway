@@ -765,7 +765,11 @@ exports.payment_sessions = new EntitySchema({
         },
         "merchant_app_id": {
             "type": "int",
-            "nullable": false
+            "nullable": true
+        },
+        "merchant_id": {
+            "type": "int",
+            "nullable": true
         },
         "customer_id": {
             "type": "int",
@@ -791,7 +795,7 @@ exports.payment_sessions = new EntitySchema({
         },
         "callback_url": {
             "type": "varchar",
-            "nullable": false
+            "nullable": true
         },
         "metadata": {
             "type": "varchar",
@@ -831,6 +835,13 @@ exports.payment_sessions = new EntitySchema({
             "target": "transactions",
             "type": "one-to-many",
             "inverseSide": "payment_sessions"
+        },
+        "merchants": {
+            "target": "merchants",
+            "type": "many-to-one",
+            "joinColumn": {
+                "name": "merchant_id"
+            }
         },
         "paymentAttempts": {
             "target": "payment_attempts",
@@ -1356,6 +1367,69 @@ exports.escrow_transactions = new EntitySchema({
     }
 });
 
+exports.subscription_plans = new EntitySchema({
+    "name": "subscription_plans",
+    "tableName": "subscription_plans",
+    "columns": {
+        "id": {
+            "type": "int",
+            "nullable": false,
+            "primary": true,
+            "generated": true,
+            "default": null
+        },
+        "merchant_id": {
+            "type": "int",
+            "nullable": false
+        },
+        "name": {
+            "type": "varchar",
+            "nullable": false
+        },
+        "description": {
+            "type": "varchar",
+            "nullable": true
+        },
+        "amount": {
+            "type": "decimal",
+            "nullable": false
+        },
+        "currency": {
+            "type": "varchar",
+            "nullable": false,
+            "default": "INR"
+        },
+        "billing_interval": {
+            "type": "varchar",
+            "nullable": false // monthly, yearly, etc.
+        },
+        "status": {
+            "type": "varchar",
+            "nullable": false,
+            "default": "active"
+        },
+        "created_at": {
+            "type": "timestamp",
+            "nullable": false,
+            "createDate": true
+        }
+    },
+    "relations": {
+        "merchants": {
+            "target": "merchants",
+            "type": "many-to-one",
+            "joinColumn": {
+                "name": "merchant_id"
+            }
+        },
+        "subscriptions": {
+            "target": "subscriptions",
+            "type": "one-to-many",
+            "inverseSide": "subscription_plans"
+        }
+    }
+});
+
 exports.subscriptions = new EntitySchema({
     "name": "subscriptions",
     "tableName": "subscriptions",
@@ -1380,21 +1454,8 @@ exports.subscriptions = new EntitySchema({
             "type": "int",
             "nullable": false
         },
-        "plan_name": {
-            "type": "varchar",
-            "nullable": false
-        },
-        "amount": {
-            "type": "decimal",
-            "nullable": false
-        },
-        "currency": {
-            "type": "varchar",
-            "nullable": false,
-            "default": "INR"
-        },
-        "billing_interval": {
-            "type": "varchar",
+        "plan_id": {
+            "type": "int",
             "nullable": false
         },
         "status": {
@@ -1434,6 +1495,13 @@ exports.subscriptions = new EntitySchema({
             "type": "many-to-one",
             "joinColumn": {
                 "name": "merchant_id"
+            }
+        },
+        "subscription_plans": {
+            "target": "subscription_plans",
+            "type": "many-to-one",
+            "joinColumn": {
+                "name": "plan_id"
             }
         },
         "payment_methods": {

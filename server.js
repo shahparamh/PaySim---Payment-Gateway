@@ -25,6 +25,8 @@ const instrumentRoutes = require('./routes/instrument.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const userRoutes = require('./routes/user.routes');
 const adminRoutes = require('./routes/admin.routes');
+const linkRoutes = require('./routes/link.routes'); // Added Payment Links API
+const subscriptionRoutes = require('./routes/subscription.routes'); // Added Subscriptions API
 
 const app = express();
 
@@ -101,6 +103,8 @@ app.use(`/api/${API_VERSION}/instruments`, instrumentRoutes);
 app.use(`/api/${API_VERSION}/dashboard`, dashboardRoutes);
 app.use(`/api/${API_VERSION}/users`, userRoutes);
 app.use(`/api/${API_VERSION}/admin`, adminRoutes);
+app.use(`/api/${API_VERSION}/platform/links`, linkRoutes);
+app.use(`/api/${API_VERSION}/platform/subscriptions`, subscriptionRoutes);
 
 
 // Detailed Health Check
@@ -127,11 +131,15 @@ app.get('/health', async (req, res) => {
     res.status(statusCode).json(health);
 });
 
-// Root redirect to login page
-app.get('/', (req, res) => {
-    res.redirect('/login.html');
+// UI Routes (Frontend Delivery)
+app.get('/', (req, res) => res.redirect('/login.html'));
+
+// Generic Payment Link Checkout Route
+app.get('/pay/:sessionId', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'checkout.html'));
 });
 
+// Admin Sub-routes
 // ──────────────────────────────────────────────────────────
 // Error Handling
 // ──────────────────────────────────────────────────────────

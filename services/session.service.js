@@ -89,7 +89,7 @@ async function getSession(sessionId) {
     const formatted = {
         ...session,
         app_name: session.merchant_apps?.app_name,
-        merchant_id: session.merchant_apps?.merchant_id,
+        merchant_id: session.merchant_id || session.merchant_apps?.merchant_id,
         business_name: session.merchant_apps?.merchants?.business_name
     };
 

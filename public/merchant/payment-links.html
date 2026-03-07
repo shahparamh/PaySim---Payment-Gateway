@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Links | PaySim - Merchant Portal</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="dashboard-wrapper">
+        <nav class="sidebar">
+            <div class="brand"><i class="bi bi-shield-lock-fill"></i> PaySim</div>
+            <div class="nav-section">
+                <p class="section-title">Home</p>
+                <a href="dashboard.html" class="nav-link"><i class="bi bi-house-door"></i> Home</a>
+            </div>
+            <div class="nav-section">
+                <p class="section-title">Payment Products</p>
+                <a href="transactions.html" class="nav-link"><i class="bi bi-arrow-left-right"></i> Transactions</a>
+                <a href="payment-links.html" class="nav-link active"><i class="bi bi-link-45deg"></i> Payment Links</a>
+                <a href="subscriptions.html" class="nav-link"><i class="bi bi-credit-card-2-front"></i>
+                    Subscriptions</a>
+            </div>
+            <div class="nav-section">
+                <p class="section-title">Banking Products</p>
+                <a href="api-keys.html" class="nav-link"><i class="bi bi-key"></i> API Keys</a>
+                <a href="apps.html" class="nav-link"><i class="bi bi-box"></i> Apps</a>
+                <a href="analytics.html" class="nav-link"><i class="bi bi-graph-up"></i> Analytics</a>
+            </div>
+            <div class="nav-section" style="margin-top: auto;">
+                <a href="#" class="nav-link" onclick="logout()"><i class="bi bi-box-arrow-left"></i> Logout</a>
+            </div>
+        </nav>
+
+        <div class="main-content">
+            <div class="topbar">
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-sm btn-outline-secondary d-md-none" id="sidebarToggle"><i
+                            class="bi bi-list"></i></button>
+                    <h1 class="page-title">Payment Links</h1>
+                </div>
+                <div class="user-info">
+                    <div class="theme-toggle me-2" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+                        <i class="bi bi-moon-fill"></i>
+                    </div>
+                    <span id="userName"></span>
+                    <div class="user-avatar shadow-glow" id="userAvatar">M</div>
+                </div>
+            </div>
+
+            <!-- Page Body -->
+            <div class="content-area">
+                <div class="row align-items-start g-4">
+                    <!-- Create Link Card -->
+                    <div class="col-xl-4">
+                        <div class="data-card glass-panel mb-4">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="m-0"><i class="bi bi-magic me-2 text-primary"></i> Create Link</h5>
+                            </div>
+                            <div style="padding: 1.5rem;">
+                                <form id="createLinkForm" class="row g-3">
+                                    <div class="col-12">
+                                        <label class="form-label">Total Amount (₹)</label>
+                                        <input type="number" class="form-control" id="linkAmount" required
+                                            placeholder="e.g. 5000">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">Description / Product Name</label>
+                                        <input type="text" class="form-control" id="linkDesc" required
+                                            placeholder="e.g. Premium Consulting Hour">
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-check form-switch mt-2">
+                                            <input class="form-check-input" type="checkbox" role="switch"
+                                                id="isReusable">
+                                            <label class="form-check-label ms-2" for="isReusable">Make this link
+                                                reusable
+                                                (can be paid multiple times)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-12 mt-4">
+                                        <button type="submit"
+                                            class="btn btn-primary w-100 d-flex align-items-center justify-content-center"
+                                            id="createBtn">
+                                            <i class="bi bi-link me-2"></i> Generate Link
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Existing Links Table -->
+                    <div class="col-xl-8">
+                        <div class="data-card glass-panel">
+                            <div class="card-header">
+                                <h5 class="m-0">Active Links</h5>
+                            </div>
+                            <div class="table-responsive" style="padding: 1rem;">
+                                <table class="table modern-table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Link description</th>
+                                            <th>Amount</th>
+                                            <th>Type</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="linksBody">
+                                        <tr>
+                                            <td colspan="5" class="text-center py-4"><span class="loader"></span></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/app.js"></script>
+    <script>
+        if (!requireAuth()) throw 'redirect';
+
+
+
+        async function loadLinks() {
+            const tbody = document.getElementById('linksBody');
+            const { ok, data } = await api('GET', '/platform/links');
+
+            if (!ok || !data.data || data.data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">No links generated yet</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.data.map(link => `
+                <tr>
+                    <td class="fw-500">${link.description}</td>
+                    <td class="fw-600">${formatCurrency(link.amount)}</td>
+                    <td>${link.is_reusable ? '<span class="badge bg-info bg-opacity-10 text-info">Reusable</span>' : '<span class="badge bg-secondary bg-opacity-10 text-secondary">Single-use</span>'}</td>
+                    <td>${statusBadge(link.status)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary shadow-sm copy-btn" data-url="${link.url}">
+                            <i class="bi bi-clipboard"></i> Copy Link
+                        </button>
+                        <a href="${link.url}" target="_blank" class="btn btn-sm btn-primary shadow-sm ms-1">
+                            <i class="bi bi-box-arrow-up-right"></i>
+                        </a>
+                    </td>
+                </tr>
+            `).join('');
+
+            // Attach copy listeners
+            document.querySelectorAll('.copy-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const url = e.currentTarget.getAttribute('data-url');
+                    navigator.clipboard.writeText(url);
+                    showToast('Link copied to clipboard!', 'success');
+                });
+            });
+        }
+
+        document.getElementById('createLinkForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('createBtn');
+            btn.innerHTML = '<span class="loader"></span> Generating...';
+            btn.disabled = true;
+
+            const payload = {
+                amount: document.getElementById('linkAmount').value,
+                description: document.getElementById('linkDesc').value,
+                is_reusable: document.getElementById('isReusable').checked
+            };
+
+            const { ok, data } = await api('POST', '/platform/links', payload);
+            if (ok) {
+                showToast('Payment link generated!', 'success');
+                document.getElementById('createLinkForm').reset();
+                loadLinks();
+            } else {
+                showToast(data.error?.message || 'Failed to create link', 'danger');
+            }
+
+            btn.innerHTML = '<i class="bi bi-link me-2"></i> Generate Link';
+            btn.disabled = false;
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            initSidebar();
+            initTopbar();
+            loadLinks();
+        });
+    </script>
+</body>
+
+</html>

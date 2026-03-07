@@ -375,7 +375,16 @@
 
         // URL Params
         const urlParams = new URLSearchParams(window.location.search);
-        const sessionId = urlParams.get('session');
+        let sessionId = urlParams.get('session');
+
+        // If not in query (e.g. /pay/:sessionId), check path
+        if (!sessionId) {
+            const pathParts = window.location.pathname.split('/');
+            // Check if it's /pay/SESSION_ID or similar
+            if (pathParts.includes('pay')) {
+                sessionId = pathParts[pathParts.indexOf('pay') + 1];
+            }
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
             if (!sessionId) {
@@ -403,9 +412,23 @@
                 document.getElementById('displayAmount').innerText = formatted;
                 document.getElementById('subtotal').innerText = formatted;
                 document.getElementById('totalDue').innerText = formatted;
-                document.getElementById('merchantName').innerText = sessionData.merchant || 'NexStore';
-                document.getElementById('mLogo').innerText = (sessionData.merchant || 'NS').substring(0, 2).toUpperCase();
-                document.getElementById('sessionDesc').innerText = sessionData.description || 'Order Summary';
+
+                // For direct payment links, we might not have a formal merchant name or order sub-details
+                let mName = sessionData.merchant || 'PaySim Merchant';
+                let mLogo = mName.substring(0, 2).toUpperCase();
+
+                try {
+                    const meta = JSON.parse(sessionData.metadata || '{}');
+                    if (meta.is_payment_link) {
+                        mName = 'Secure Checkout Link';
+                        mLogo = 'SC';
+                        document.getElementById('orderDetails').style.display = 'none'; // Hide subtotal breakdown for direct links
+                    }
+                } catch (e) { }
+
+                document.getElementById('merchantName').innerText = mName;
+                document.getElementById('mLogo').innerText = mLogo;
+                document.getElementById('sessionDesc').innerText = sessionData.description || 'Payment Authorized via PaySim';
 
             } catch (err) {
                 console.error(err);

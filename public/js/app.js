@@ -212,8 +212,12 @@ function initTopbar() {
         nameEl.textContent = user.first_name || user.business_name || user.name || 'User';
     }
     if (avatarEl) {
-        const name = user.first_name || user.business_name || user.name || 'U';
-        avatarEl.textContent = name.charAt(0).toUpperCase();
+        let iconClass = 'bi-person';
+        if (user.role === 'admin') iconClass = 'bi-shield-lock';
+        else if (user.role === 'merchant') iconClass = 'bi-shop';
+        else if (user.role === 'customer') iconClass = 'bi-person-circle';
+
+        avatarEl.innerHTML = `<i class="bi ${iconClass}"></i>`;
     }
 }
 
