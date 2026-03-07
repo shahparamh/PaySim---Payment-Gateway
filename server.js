@@ -24,8 +24,10 @@ const paymentRoutes = require('./routes/payment.routes');
 const instrumentRoutes = require('./routes/instrument.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const userRoutes = require('./routes/user.routes');
+const adminRoutes = require('./routes/admin.routes');
 
 const app = express();
+
 const PORT = process.env.PORT || 3000;
 const API_VERSION = process.env.API_VERSION || 'v1';
 
@@ -98,6 +100,8 @@ app.use(`/api/${API_VERSION}/payments`, paymentRoutes);
 app.use(`/api/${API_VERSION}/instruments`, instrumentRoutes);
 app.use(`/api/${API_VERSION}/dashboard`, dashboardRoutes);
 app.use(`/api/${API_VERSION}/users`, userRoutes);
+app.use(`/api/${API_VERSION}/admin`, adminRoutes);
+
 
 // Detailed Health Check
 app.get('/health', async (req, res) => {

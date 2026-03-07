@@ -59,6 +59,10 @@
                                     <option value="admin">Admin</option>
                                 </select>
                             </div>
+                            <div class="mb-3 text-end">
+                                <a href="/forgot-password.html" class="text-primary small text-decoration-none">Forgot
+                                    Password?</a>
+                            </div>
                             <button type="submit" class="btn btn-primary w-100 py-2" id="loginBtn">
                                 <i class="bi bi-box-arrow-in-right me-1"></i> Login
                             </button>
@@ -288,13 +292,16 @@
                         setTimeout(() => redirectToDashboard(data.data.user.type || data.data.type), 500);
                     }
                 } else {
-                    showToast(data.error?.message || 'Login failed', 'danger');
+                    const msg = data?.error?.message || data?.message || 'Login failed';
+                    showToast(msg, 'danger');
                 }
             } catch (err) {
+                console.error('Login submit error:', err);
                 btn.disabled = false;
                 btn.innerHTML = '<i class="bi bi-box-arrow-in-right me-1"></i> Login';
-                showToast('Network error', 'danger');
+                showToast('Network or Server error. Please check console.', 'danger');
             }
+
         }
 
         function initLoginOtpInputs() {

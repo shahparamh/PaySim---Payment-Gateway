@@ -45,26 +45,41 @@ function logout() {
 // ── API Helper ──────────────────────────────────────────
 
 async function api(method, endpoint, body = null) {
-    const headers = { 'Content-Type': 'application/json' };
-    const token = getToken();
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+    try {
+        const headers = { 'Content-Type': 'application/json' };
+        const token = getToken();
+        if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    const options = { method, headers };
-    if (body && method !== 'GET') {
-        options.body = JSON.stringify(body);
+        const options = { method, headers };
+        if (body && method !== 'GET') {
+            options.body = JSON.stringify(body);
+        }
+
+        const res = await fetch(`${API_BASE}${endpoint}`, options);
+
+        let data;
+        try {
+            data = await res.json();
+        } catch (e) {
+            console.error('API Parse Error:', e);
+            data = { success: false, error: { message: 'Incomplete or malformed response from server' } };
+        }
+
+        if (res.status === 401) {
+            clearAuth();
+            if (!window.location.pathname.endsWith('login.html')) {
+                window.location.href = '/login.html';
+            }
+            return { ok: false, status: 401, data };
+        }
+
+        return { ok: res.ok, status: res.status, data };
+    } catch (err) {
+        console.error('API Network/System Error:', err);
+        return { ok: false, error: err };
     }
-
-    const res = await fetch(`${API_BASE}${endpoint}`, options);
-    const data = await res.json();
-
-    if (res.status === 401) {
-        clearAuth();
-        window.location.href = '/login.html';
-        return;
-    }
-
-    return { ok: res.ok, status: res.status, data };
 }
+
 
 // ── Toast Notifications ─────────────────────────────────
 

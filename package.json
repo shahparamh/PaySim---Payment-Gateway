@@ -4,9 +4,9 @@
   "description": "Payment Gateway Platform with Integrated Payment Simulator",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
-    "seed": "node scripts/seed.js"
+    "start": "LD_LIBRARY_PATH=./instantclient_21_15 node server.js",
+    "dev": "LD_LIBRARY_PATH=./instantclient_21_15 nodemon server.js",
+    "seed": "LD_LIBRARY_PATH=./instantclient_21_15 node scripts/seed.js"
   },
   "keywords": [
     "payment",

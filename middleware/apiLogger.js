@@ -34,6 +34,14 @@ const apiLogger = (req, res, next) => {
             const responseTimeMs = Date.now() - startTime;
 
             const apiLogRepo = AppDataSource.getRepository(api_logs);
+
+            // Safety truncation even for CLOB to prevent massive memory/DB pressure
+            const MAX_LOG_SIZE = 32768; // 32KB
+            const truncate = (str) => {
+                if (!str) return null;
+                return str.length > MAX_LOG_SIZE ? str.substring(0, MAX_LOG_SIZE) + '...[TRUNCATED]' : str;
+            };
+
             await apiLogRepo.save({
                 merchant_app_id: merchantAppId,
                 request_id: requestId,
@@ -41,10 +49,11 @@ const apiLogger = (req, res, next) => {
                 endpoint: req.originalUrl,
                 status_code: res.statusCode,
                 ip_address: req.ip || req.connection.remoteAddress,
-                request_body: req.body ? JSON.stringify(req.body) : null,
-                response_body: responseBody ? JSON.stringify(responseBody) : null,
+                request_body: truncate(req.body ? JSON.stringify(req.body) : null),
+                response_body: truncate(responseBody ? JSON.stringify(responseBody) : null),
                 response_time_ms: responseTimeMs
             });
+
         } catch (err) {
             // Logging failures should not crash the app
             console.error('⚠️  API log write failed:', err.message);

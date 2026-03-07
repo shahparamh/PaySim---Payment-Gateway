@@ -1,5 +1,14 @@
 const { DataSource } = require('typeorm');
 const entities = require('../src/entities');
+const oracledb = require('oracledb');
+const path = require('path');
+
+try {
+    oracledb.initOracleClient({ libDir: path.join(__dirname, '..', 'instantclient_21_15') });
+    console.log('✅ Oracle Thick Client initialized successfully from instantclient_21_15');
+} catch (err) {
+    console.warn('⚠️ Could not initialize Oracle Thick Client (this may be normal if thin mode is sufficient or client already init):', err.message);
+}
 
 const AppDataSource = new DataSource({
     type: "oracle",

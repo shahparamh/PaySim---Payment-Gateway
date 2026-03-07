@@ -26,6 +26,15 @@ router.post('/register/verify', authController.verifyRegistrationOTP);
 // Body: { email, code, type }
 router.post('/login/verify', authController.verifyLoginOTP);
 
+// POST /api/v1/auth/forgot-password
+// Body: { email, type }
+router.post('/forgot-password', authLimiter, authController.forgotPassword);
+
+// POST /api/v1/auth/reset-password
+// Body: { email, code, new_password, type }
+router.post('/reset-password', authLimiter, authController.resetPassword);
+
+
 // ── Protected routes ────────────────────────────────────
 
 // POST /api/v1/auth/logout

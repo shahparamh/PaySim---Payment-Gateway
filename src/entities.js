@@ -148,13 +148,14 @@ exports.api_logs = new EntitySchema({
             "nullable": false
         },
         "request_body": {
-            "type": "varchar",
+            "type": "clob",
             "nullable": true
         },
         "response_body": {
-            "type": "varchar",
+            "type": "clob",
             "nullable": true
         },
+
         "response_time_ms": {
             "type": "int",
             "nullable": false,
@@ -717,6 +718,9 @@ exports.payment_methods = new EntitySchema({
             "createDate": true
         }
     },
+    "indices": [
+        { "name": "IDX_PM_CUSTOMER", "columns": ["customer_id"] }
+    ],
     "relations": {
         "customers": {
             "target": "customers",

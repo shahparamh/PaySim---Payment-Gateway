@@ -65,9 +65,14 @@ function generateOTP() {
 
 exports.register = async (req, res, next) => {
     try {
-        const { type, password } = req.body;
+        let { type, password, email, business_email } = req.body;
+
+        // Normalize emails
+        if (email) email = email.toLowerCase();
+        if (business_email) business_email = business_email.toLowerCase();
 
         // ── Validate common fields ──────────────────────────
+
         if (!type || !['customer', 'merchant', 'admin'].includes(type)) {
             return res.status(400).json(
                 error('VALIDATION', 'type must be one of: customer, merchant, admin')
@@ -89,7 +94,8 @@ exports.register = async (req, res, next) => {
 
         // ── Customer registration ───────────────────────────
         if (type === 'customer') {
-            const { first_name, last_name, email, phone, pin } = req.body;
+            const { first_name, last_name, phone, pin } = req.body;
+
 
             if (!first_name || !last_name || !email) {
                 return res.status(400).json(
@@ -125,7 +131,8 @@ exports.register = async (req, res, next) => {
 
         // ── Merchant registration ───────────────────────────
         else if (type === 'merchant') {
-            const { business_name, business_email, phone, business_type } = req.body;
+            const { business_name, phone, business_type } = req.body;
+
 
             if (!business_name || !business_email) {
                 return res.status(400).json(
@@ -152,7 +159,8 @@ exports.register = async (req, res, next) => {
 
         // ── Admin registration ──────────────────────────────
         else if (type === 'admin') {
-            const { name, email, role } = req.body;
+            const { name, role } = req.body;
+
 
             if (!name || !email) {
                 return res.status(400).json(
@@ -184,7 +192,8 @@ exports.register = async (req, res, next) => {
         }
 
         // --- Generate OTP for Registration ---
-        const userEmail = type === 'merchant' ? req.body.business_email : req.body.email;
+        const userEmail = type === 'merchant' ? business_email : email;
+
         const otp = generateOTP();
         const expiresAt = new Date(Date.now() + 10 * 60000); // 10 mins
 
@@ -222,9 +231,11 @@ exports.register = async (req, res, next) => {
 
 exports.login = async (req, res, next) => {
     try {
-        const { email, password, type } = req.body;
+        let { email, password, type } = req.body;
+        if (email) email = email.toLowerCase();
 
         if (!email || !password) {
+
             return res.status(400).json(
                 error('VALIDATION', 'email and password are required')
             );
@@ -298,9 +309,11 @@ exports.login = async (req, res, next) => {
 // ============================================================
 exports.verifyLoginOTP = async (req, res, next) => {
     try {
-        const { email, code, type } = req.body;
+        let { email, code, type } = req.body;
+        if (email) email = email.toLowerCase();
 
         if (!email || !code) {
+
             return res.status(400).json(error('VALIDATION', 'Email and OTP code are required'));
         }
 
@@ -362,9 +375,11 @@ exports.verifyLoginOTP = async (req, res, next) => {
 // ============================================================
 exports.verifyRegistrationOTP = async (req, res, next) => {
     try {
-        const { email, code, type, pending_data } = req.body;
+        let { email, code, type, pending_data } = req.body;
+        if (email) email = email.toLowerCase();
 
         if (!email || !code || !pending_data) {
+
             return res.status(400).json(error('VALIDATION', 'Email, OTP code, and registration data are required'));
         }
 
@@ -557,3 +572,102 @@ exports.setPaymentPin = async (req, res, next) => {
         next(err);
     }
 };
+
+// ============================================================
+// POST /auth/forgot-password
+// ============================================================
+exports.forgotPassword = async (req, res, next) => {
+    try {
+        let { email, type } = req.body;
+        if (email) email = email.toLowerCase();
+        const userType = type || 'customer';
+
+
+        if (!email) {
+            return res.status(400).json(error('VALIDATION', 'Email is required'));
+        }
+
+        const config = getTableConfig(userType);
+        const repo = AppDataSource.getRepository(config.table);
+        const user = await repo.findOneBy({ [config.emailCol]: email });
+
+        if (!user) {
+            // Return success even if user not found for security reasons
+            return res.json(success('If an account exists with this email, you will receive an OTP shortly'));
+        }
+
+        const otp = generateOTP();
+        const expiresAt = new Date(Date.now() + 15 * 60000); // 15 mins
+
+        const verificationRepo = AppDataSource.getRepository(verification_codes);
+        await verificationRepo.save({
+            email,
+            code: otp,
+            type: 'reset_password',
+            expires_at: expiresAt
+        });
+
+        console.log(`\n[SECURITY] Password Reset OTP for ${email}: ${otp}\n`);
+        await emailService.sendOTP(email, otp, 'reset');
+
+        res.json(success('If an account exists with this email, you will receive an OTP shortly'));
+    } catch (err) {
+        next(err);
+    }
+};
+
+// ============================================================
+// POST /auth/reset-password
+// ============================================================
+exports.resetPassword = async (req, res, next) => {
+    try {
+        let { email, code, new_password, type } = req.body;
+        if (email) email = email.toLowerCase();
+        const userType = type || 'customer';
+
+
+        if (!email || !code || !new_password) {
+            return res.status(400).json(error('VALIDATION', 'Email, OTP code, and new password are required'));
+        }
+
+        if (!validatePassword(new_password)) {
+            return res.status(400).json(error('VALIDATION', 'Password must be at least 8 characters'));
+        }
+
+        const verificationRepo = AppDataSource.getRepository(verification_codes);
+        const verification = await verificationRepo.findOne({
+            where: {
+                email,
+                code,
+                type: 'reset_password'
+            },
+            order: { created_at: 'DESC' }
+        });
+
+        if (!verification || verification.expires_at < new Date()) {
+            return res.status(401).json(error('INVALID_OTP', 'Invalid or expired OTP code'));
+        }
+
+        // Hash new password
+        const passwordHash = await bcrypt.hash(new_password, SALT_ROUNDS);
+
+        // Update user
+        const config = getTableConfig(userType);
+        const repo = AppDataSource.getRepository(config.table);
+        const user = await repo.findOneBy({ [config.emailCol]: email });
+
+        if (!user) {
+            return res.status(404).json(error('NOT_FOUND', 'User not found'));
+        }
+
+        await repo.update(user.id, { password_hash: passwordHash });
+
+        // Delete used code
+        await verificationRepo.delete(verification.id);
+
+        res.json(success('Password has been reset successfully. You can now log in.'));
+    } catch (err) {
+        next(err);
+    }
+};
+

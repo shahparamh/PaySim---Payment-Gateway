@@ -114,13 +114,15 @@ class EmailService {
         const subjects = {
             registration: 'Verify Your PaySim Account',
             login: 'Your PaySim Login Code',
-            payment: 'Authorize Your Payment'
+            payment: 'Authorize Your Payment',
+            reset: 'Reset Your PaySim Password'
         };
 
         const labels = {
             registration: 'Registration',
             login: 'Login Verification',
-            payment: 'Payment Authorization'
+            payment: 'Payment Authorization',
+            reset: 'Password Reset'
         };
 
         const subject = subjects[type] || subjects.registration;

@@ -77,7 +77,10 @@ async function seed() {
         const users = [
             { first: 'John', last: 'Doe', email: 'john@doe.com' },
             { first: 'Jane', last: 'Smith', email: 'jane@smith.com' },
-            { first: 'Mike', last: 'Ross', email: 'mike@ross.com' }
+            { first: 'Mike', last: 'Ross', email: 'mike@ross.com' },
+            { first: 'Harvey', last: 'Specter', email: 'harvey@specter.com' },
+            { first: 'Louis', last: 'Litt', email: 'louis@litt.com' },
+            { first: 'Donna', last: 'Paulsen', email: 'donna@paulsen.com' }
         ];
 
         const savedUsers = [];
@@ -126,6 +129,31 @@ async function seed() {
                 key_type: 'secret', is_active: 1
             }));
             console.log(`📱 App & Key created for ${item.m.business_name}`);
+        }
+
+        // 6. Create Transactions
+        console.log('💸 Creating sample transactions...');
+        const txnRepo = AppDataSource.getRepository('transactions');
+        const transactionData = [
+            { customer: savedUsers[0], amount: 150.00, desc: 'Coffee at NexStore' },
+            { customer: savedUsers[1], amount: 1200.50, desc: 'Electronics Purchase' },
+            { customer: savedUsers[2], amount: 85.00, desc: 'Stationery' },
+            { customer: savedUsers[0], amount: 500.00, desc: 'Grocery' },
+            { customer: savedUsers[3], amount: 2500.00, desc: 'Office Chair' }
+        ];
+
+        for (const t of transactionData) {
+            await txnRepo.save(txnRepo.create({
+                txn_id: uuidv4(),
+                customer_id: t.customer.id,
+                merchant_id: nexStore.id,
+                amount: t.amount,
+                currency: 'INR',
+                status: 'success',
+                mode: 'wallet',
+                verified_at: new Date()
+            }));
+            console.log(`✅ Transaction created for ${t.customer.first_name}: ₹${t.amount}`);
         }
 
         console.log('\n✅ Seeding completed successfully!');

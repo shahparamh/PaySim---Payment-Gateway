@@ -1,0 +1,16 @@
+services:
+  oracle:
+    image: gvenzl/oracle-xe:latest
+    container_name: paysim-oracle
+    ports:
+      - "1521:1521"
+      - "5500:5500"
+    environment:
+      - ORACLE_PASSWORD=paysim123
+      - APP_USER=Paysim
+      - APP_USER_PASSWORD=paysim123
+    volumes:
+      - oracle_data:/opt/oracle/oradata
+
+volumes:
+  oracle_data:
