@@ -1,5 +1,5 @@
-const AppDataSource = require('./config/database');
-const { verification_codes } = require('./src/entities');
+const AppDataSource = require('../config/database');
+const { verification_codes } = require('../src/entities');
 
 async function getOTP() {
     await AppDataSource.initialize();

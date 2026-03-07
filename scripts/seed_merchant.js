@@ -1,14 +1,14 @@
-const AppDataSource = require('./config/database');
+const AppDataSource = require('../config/database');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
-const { merchants, merchant_apps, api_keys } = require('./src/entities');
+const { merchants, merchant_apps, api_keys } = require('../src/entities');
 
 async function seed() {
     try {
         await AppDataSource.initialize();
         const merchantRepo = AppDataSource.getRepository(merchants);
         let merchant = await merchantRepo.findOneBy({ business_email: 'merchant@nexstore.com' });
-        
+
         if (!merchant) {
             merchant = await merchantRepo.save({
                 uuid: uuidv4(),
@@ -24,7 +24,7 @@ async function seed() {
 
         const appRepo = AppDataSource.getRepository(merchant_apps);
         let app = await appRepo.findOneBy({ merchant_id: merchant.id, app_name: 'NexStore Online' });
-        
+
         if (!app) {
             app = await appRepo.save({
                 merchant_id: merchant.id,
@@ -39,7 +39,7 @@ async function seed() {
 
         const keyRepo = AppDataSource.getRepository(api_keys);
         let keys = await keyRepo.find({ where: { merchant_app_id: app.id, key_type: 'secret' } });
-        
+
         if (keys.length > 0) {
             console.log("Existing App API Key:", keys[0].key_hash);
         } else {
@@ -53,7 +53,7 @@ async function seed() {
             console.log("Created API Key: sk_test_nexstore_demo_key_2026_secure");
         }
         process.exit(0);
-    } catch(err) {
+    } catch (err) {
         console.error(err);
         process.exit(1);
     }

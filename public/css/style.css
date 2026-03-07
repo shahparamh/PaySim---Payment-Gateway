@@ -498,9 +498,8 @@ a {
 .pin-input-container {
     display: flex;
     justify-content: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    /* Fix OTP boxes wrapping awkwardly */
+    gap: 0.4rem;
+    flex-wrap: nowrap;
 }
 
 .pin-box,
@@ -509,9 +508,9 @@ a {
     background: var(--bg-main);
     border: 2px solid var(--border);
     color: var(--text-main);
-    width: 3.5rem;
-    height: 4.5rem;
-    font-size: 2rem;
+    width: 2.8rem;
+    height: 3.5rem;
+    font-size: 1.5rem;
     font-weight: 700;
     text-align: center;
     border-radius: var(--radius);
