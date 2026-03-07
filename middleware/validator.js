@@ -24,11 +24,13 @@ exports.loginSchema = [
 ];
 
 exports.registerSchema = [
-    body('email').isEmail().withMessage('Please provide a valid email'),
+    body('type').isIn(['customer', 'merchant', 'admin']).withMessage('Invalid type selected'),
+    body('email').if(body('type').equals('customer')).isEmail().withMessage('Please provide a valid email'),
+    body('business_email').if(body('type').equals('merchant')).isEmail().withMessage('Please provide a valid business email'),
     body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
-    body('first_name').optional().notEmpty().withMessage('First name cannot be empty'),
-    body('last_name').optional().notEmpty().withMessage('Last name cannot be empty'),
-    body('business_name').optional().notEmpty().withMessage('Business name is required for merchants')
+    body('first_name').if(body('type').equals('customer')).notEmpty().withMessage('First name cannot be empty'),
+    body('last_name').if(body('type').equals('customer')).notEmpty().withMessage('Last name cannot be empty'),
+    body('business_name').if(body('type').equals('merchant')).notEmpty().withMessage('Business name is required for merchants')
 ];
 
 // Platform Session Validation

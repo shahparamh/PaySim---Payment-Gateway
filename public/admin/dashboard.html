@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 
 <head>
     <meta charset="UTF-8">
@@ -32,7 +32,7 @@
             <div class="topbar">
                 <h1 class="page-title">Admin Dashboard</h1>
                 <div class="user-info"><span id="userName"></span>
-                    <div class="user-avatar" id="userAvatar">A</div>
+                    <div class="user-avatar shadow-glow" id="userAvatar">A</div>
                 </div>
             </div>
             <div class="content-area">
@@ -71,25 +71,26 @@
                 <!-- Fraud Alert Summary -->
                 <div class="row g-3 mb-4">
                     <div class="col-md-3 col-6">
-                        <div class="stat-card" style="border-left: 4px solid var(--danger);">
+                        <div class="stat-card glass-panel hover-lift" style="border-left: 4px solid var(--danger);">
                             <div class="stat-value" id="fraudOpen">0</div>
                             <div class="stat-label">Open Alerts</div>
                         </div>
                     </div>
                     <div class="col-md-3 col-6">
-                        <div class="stat-card" style="border-left: 4px solid var(--warning);">
+                        <div class="stat-card glass-panel hover-lift" style="border-left: 4px solid var(--warning);">
                             <div class="stat-value" id="fraud24h">0</div>
                             <div class="stat-label">Last 24h Alerts</div>
                         </div>
                     </div>
                     <div class="col-md-3 col-6">
-                        <div class="stat-card" style="border-left: 4px solid #ef4444;">
+                        <div class="stat-card glass-panel hover-lift" style="border-left: 4px solid #ef4444;">
                             <div class="stat-value" id="fraudCritical">0</div>
                             <div class="stat-label">Critical Severity</div>
                         </div>
                     </div>
                     <div class="col-md-3 col-6">
-                        <a href="fraud-alerts.html" class="stat-card d-block text-decoration-none text-center"
+                        <a href="fraud-alerts.html"
+                            class="stat-card glass-panel hover-lift d-block text-decoration-none text-center"
                             style="border-left: 4px solid var(--primary); cursor: pointer;">
                             <i class="bi bi-exclamation-triangle" style="font-size: 1.5rem; color: var(--warning);"></i>
                             <div class="mt-1 fw-600">View All Alerts</div>
@@ -98,7 +99,7 @@
                 </div>
 
                 <!-- Recent Transactions -->
-                <div class="data-card">
+                <div class="data-card glass-panel">
                     <div class="card-header">
                         <h5><i class="bi bi-clock-history me-2"></i>Recent Platform Transactions</h5>
                     </div>

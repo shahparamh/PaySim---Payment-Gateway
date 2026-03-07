@@ -5,6 +5,7 @@
 
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
+const { Not } = require('typeorm');
 const AppDataSource = require('../config/database');
 const { payment_attempts, customers, verification_codes, payment_sessions, payment_methods, transactions, payment_splits } = require('../src/entities');
 const instrumentService = require('./instrument.service');
@@ -122,7 +123,7 @@ class TransactionService {
         return await methodRepo.findOne({
             where: {
                 customer_id: parseInt(customerId),
-                id: AppDataSource.manager.query(`id != ${parseInt(failedMethodId)}`), // Placeholder for raw query workaround
+                id: Not(parseInt(failedMethodId)),
                 status: 'active'
             },
             order: { is_default: 'DESC' }

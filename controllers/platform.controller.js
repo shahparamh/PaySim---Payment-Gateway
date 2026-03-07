@@ -540,7 +540,6 @@ exports.getDashboard = async (req, res, next) => {
         // Aggregate stats
         const summaryRaw = await txnRepo.createQueryBuilder("txn")
             .where("txn.merchant_id = :merchantId", { merchantId })
-            .andWhere("txn.mode = :mode", { mode: 'platform' })
             .select("txn.status", "status")
             .addSelect("COUNT(txn.id)", "_count")
             .addSelect("SUM(txn.amount)", "_sum_amount")
@@ -580,7 +579,6 @@ exports.getDashboard = async (req, res, next) => {
 
         const recentTxnsForChart = await txnRepo.createQueryBuilder("txn")
             .where("txn.merchant_id = :merchantId", { merchantId })
-            .andWhere("txn.mode = :mode", { mode: 'platform' })
             .andWhere("txn.status = :status", { status: 'success' })
             .andWhere("txn.created_at >= :lastPeriodStart", { lastPeriodStart })
             .select(['txn.amount', 'txn.created_at'])
@@ -631,7 +629,7 @@ exports.getDashboard = async (req, res, next) => {
 
         // Recent transactions
         const recent = await txnRepo.find({
-            where: { merchant_id: merchantId, mode: 'platform' },
+            where: { merchant_id: merchantId },
             order: { created_at: 'DESC' },
             take: 10
         });
@@ -668,7 +666,7 @@ exports.getTransactions = async (req, res, next) => {
 
         const txnRepo = AppDataSource.getRepository(transactions);
         const [transactionsRes, total] = await txnRepo.findAndCount({
-            where: { merchant_id: merchantId, mode: 'platform' },
+            where: { merchant_id: merchantId },
             relations: ['payment_methods'],
             order: { created_at: 'DESC' },
             take: limit,
