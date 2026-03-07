@@ -12,7 +12,8 @@
 // ============================================================
 
 const { v4: uuidv4 } = require('uuid');
-const prisma = require('../config/prisma');
+const AppDataSource = require('../config/database');
+const { payment_sessions, merchant_apps } = require('../src/entities');
 
 const SESSION_TTL = parseInt(process.env.SESSION_TTL_MINUTES) || 15;
 
@@ -40,9 +41,10 @@ async function createSession({
 
     // Get the merchant's default callback_url if not provided
     if (!callbackUrl) {
-        const app = await prisma.merchant_apps.findUnique({
+        const appRepo = AppDataSource.getRepository(merchant_apps);
+        const app = await appRepo.findOne({
             where: { id: merchantAppId },
-            select: { callback_url: true }
+            select: ['callback_url']
         });
         callbackUrl = app ? app.callback_url : '';
     }
@@ -55,17 +57,16 @@ async function createSession({
         splits: splits || null
     };
 
-    await prisma.payment_sessions.create({
-        data: {
-            session_id: sessionId,
-            merchant_app_id: merchantAppId,
-            amount: amount,
-            currency: currency,
-            description: description || null,
-            callback_url: callbackUrl,
-            metadata: JSON.stringify(fullMetadata),
-            expires_at: expiresAt
-        }
+    const sessionRepo = AppDataSource.getRepository(payment_sessions);
+    await sessionRepo.save({
+        session_id: sessionId,
+        merchant_app_id: merchantAppId,
+        amount: amount,
+        currency: currency,
+        description: description || null,
+        callback_url: callbackUrl,
+        metadata: JSON.stringify(fullMetadata),
+        expires_at: expiresAt
     });
 
     return { sessionId, amount, currency, expiresAt };
@@ -76,13 +77,10 @@ async function createSession({
  * Automatically expires sessions past their TTL.
  */
 async function getSession(sessionId) {
-    const session = await prisma.payment_sessions.findFirst({
+    const sessionRepo = AppDataSource.getRepository(payment_sessions);
+    const session = await sessionRepo.findOne({
         where: { session_id: sessionId },
-        include: {
-            merchant_apps: {
-                include: { merchants: true }
-            }
-        }
+        relations: ['merchant_apps', 'merchant_apps.merchants']
     });
 
     if (!session) return null;
@@ -97,10 +95,7 @@ async function getSession(sessionId) {
 
     // Auto-expire if past TTL and still pending
     if (formatted.status === 'pending' && new Date(formatted.expires_at) < new Date()) {
-        await prisma.payment_sessions.update({
-            where: { id: formatted.id },
-            data: { status: 'expired' }
-        });
+        await sessionRepo.update({ id: formatted.id }, { status: 'expired' });
         formatted.status = 'expired';
     }
 
@@ -114,10 +109,8 @@ async function updateSessionStatus(sessionId, status, customerId = null) {
     const data = { status };
     if (customerId) data.customer_id = customerId;
 
-    await prisma.payment_sessions.updateMany({
-        where: { session_id: sessionId },
-        data
-    });
+    const sessionRepo = AppDataSource.getRepository(payment_sessions);
+    await sessionRepo.update({ session_id: sessionId }, data);
 }
 
 module.exports = { createSession, getSession, updateSessionStatus };

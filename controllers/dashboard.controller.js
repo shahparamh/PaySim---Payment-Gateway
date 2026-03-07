@@ -13,7 +13,8 @@
 //     - Customer risk assessment
 // ============================================================
 
-const prisma = require('../config/prisma');
+const AppDataSource = require('../config/database');
+const { transactions, wallets, settlements } = require('../src/entities');
 const fraudService = require('../services/fraud.service');
 const { success, error } = require('../utils/responseHelper');
 
@@ -30,12 +31,27 @@ exports.getStats = async (req, res, next) => {
         if (userType === 'merchant') where.merchant_id = userId;
         else if (userType === 'customer') where.customer_id = userId;
 
-        const summary = await prisma.transactions.groupBy({
-            by: ['status'],
-            where: where,
-            _count: true,
-            _sum: { amount: true }
-        });
+        const txnRepo = AppDataSource.getRepository(transactions);
+        const queryBuilder = txnRepo.createQueryBuilder("txn");
+
+        if (where.merchant_id) {
+            queryBuilder.where("txn.merchant_id = :merchantId", { merchantId: userId });
+        } else if (where.customer_id) {
+            queryBuilder.where("txn.customer_id = :customerId", { customerId: userId });
+        }
+
+        const summaryRaw = await queryBuilder
+            .select("txn.status", "status")
+            .addSelect("COUNT(txn.id)", "_count")
+            .addSelect("SUM(txn.amount)", "_sum_amount")
+            .groupBy("txn.status")
+            .getRawMany();
+
+        const summary = summaryRaw.map(s => ({
+            status: s.status,
+            _count: parseInt(s._count, 10),
+            _sum: { amount: parseFloat(s._sum_amount || 0) }
+        }));
 
         // Format result to match previous structure
         const result = {
@@ -61,14 +77,18 @@ exports.getStats = async (req, res, next) => {
         const sevenDaysAgo = new Date(startOfToday);
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
 
-        const recentTxns = await prisma.transactions.findMany({
-            where: {
-                ...where,
-                status: 'success',
-                created_at: { gte: sevenDaysAgo }
-            },
-            select: { amount: true, created_at: true }
-        });
+        const recentTxnsQb = txnRepo.createQueryBuilder("txn")
+            .where("txn.status = :status", { status: 'success' })
+            .andWhere("txn.created_at >= :sevenDaysAgo", { sevenDaysAgo })
+            .select(['txn.amount', 'txn.created_at']);
+
+        if (where.merchant_id) {
+            recentTxnsQb.andWhere("txn.merchant_id = :merchantId", { merchantId: userId });
+        } else if (where.customer_id) {
+            recentTxnsQb.andWhere("txn.customer_id = :customerId", { customerId: userId });
+        }
+
+        const recentTxns = await recentTxnsQb.getMany();
 
         const labels = [];
         const dataArr = [];
@@ -100,19 +120,24 @@ exports.getStats = async (req, res, next) => {
         // Spent This Month
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const monthStats = await prisma.transactions.aggregate({
-            where: {
-                ...where,
-                status: 'success',
-                created_at: { gte: startOfMonth }
-            },
-            _sum: { amount: true }
-        });
-        result.spent_this_month = parseFloat(monthStats._sum.amount || 0);
+        const monthStatsQb = txnRepo.createQueryBuilder("txn")
+            .where("txn.status = :status", { status: 'success' })
+            .andWhere("txn.created_at >= :startOfMonth", { startOfMonth })
+            .select("SUM(txn.amount)", "_sum_amount");
+
+        if (where.merchant_id) {
+            monthStatsQb.andWhere("txn.merchant_id = :merchantId", { merchantId: userId });
+        } else if (where.customer_id) {
+            monthStatsQb.andWhere("txn.customer_id = :customerId", { customerId: userId });
+        }
+
+        const monthStatsRaw = await monthStatsQb.getRawOne();
+        result.spent_this_month = parseFloat(monthStatsRaw?._sum_amount || 0);
 
         // Wallet Balance (for customers)
         if (userType === 'customer') {
-            const wallet = await prisma.wallets.findFirst({
+            const walletRepo = AppDataSource.getRepository(wallets);
+            const wallet = await walletRepo.findOne({
                 where: { customer_id: userId }
             });
             result.wallet_balance = wallet ? parseFloat(wallet.balance) : 0;
@@ -142,19 +167,17 @@ exports.getTransactions = async (req, res, next) => {
         if (status) where.status = status;
         if (mode) where.mode = mode;
 
-        const [transactions, total] = await Promise.all([
-            prisma.transactions.findMany({
-                where,
-                include: { payment_methods: { select: { method_type: true } } },
-                orderBy: { created_at: 'desc' },
-                take: limit,
-                skip: skip
-            }),
-            prisma.transactions.count({ where })
-        ]);
+        const txnRepo = AppDataSource.getRepository(transactions);
+        const [txns, total] = await txnRepo.findAndCount({
+            where,
+            relations: ['payment_methods'],
+            order: { created_at: 'DESC' },
+            take: limit,
+            skip: skip
+        });
 
         // Flatten method_type for frontend compatibility
-        const formatted = transactions.map(t => ({
+        const formatted = txns.map(t => ({
             ...t,
             method_type: t.payment_methods?.method_type || 'unknown'
         }));
@@ -177,13 +200,14 @@ exports.getSettlements = async (req, res, next) => {
         const where = {};
         if (req.user.type !== 'admin') where.merchant_id = req.user.id;
 
-        const settlements = await prisma.settlements.findMany({
+        const settlementRepo = AppDataSource.getRepository(settlements);
+        const settlementsData = await settlementRepo.find({
             where,
-            orderBy: { created_at: 'desc' },
+            order: { created_at: 'DESC' },
             take: 50
         });
 
-        res.json(success('Settlements retrieved', settlements));
+        res.json(success('Settlements retrieved', settlementsData));
     } catch (err) {
         next(err);
     }

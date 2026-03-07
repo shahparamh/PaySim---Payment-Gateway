@@ -692,10 +692,15 @@ All errors follow this structure:
 
 ---
 
-## MySQL Triggers (Fraud Detection)
+## 8. Security Business Logic (Fraud Detection)
 
-| Trigger | Table | Rule |
+The system implements core security rules within the `TransactionService` and `FraudService`.
+
+| Rule Type | Logic | Action |
 |---|---|---|
-| `trg_fraud_amount_spike` | transactions | `amount > 50,000` → insert fraud_alerts |
-| `trg_fraud_velocity_breach` | transactions | `> 5 txns in 10 min` → insert fraud_alerts |
-| `trg_fraud_card_testing` | transactions | `3+ failures in 5 min` → insert fraud_alerts |
+| **Amount Spike** | `amount > 50,000` | Generate `fraud_alert` & require High-Value OTP |
+| **Velocity Breach** | `> 5 txns in 10 min` | Flag customer as `suspended` & generate alert |
+| **Retry Exhaustion** | `3+ failures in 5 min` | Temporarily block payment instrument |
+
+---
+© 2026 PaySim Platform. Built for Advanced Fintech Simulation.

@@ -115,8 +115,14 @@
                         <form id="cardForm" style="display:none;" onsubmit="addCard(event)">
                             <div class="mb-3">
                                 <label class="form-label">Card Number</label>
-                                <input type="text" class="form-control" id="cardNumber"
-                                    placeholder="4111 1111 1111 1111" maxlength="19">
+                                <div class="input-group">
+                                    <input type="password" class="form-control" id="cardNumber"
+                                        placeholder="4111 1111 1111 1111" maxlength="19">
+                                    <button class="btn btn-outline-secondary" type="button" tabindex="-1"
+                                        onclick="toggleVisibility('cardNumber', this)">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Cardholder Name</label>
@@ -126,22 +132,33 @@
                                 <div class="col-4">
                                     <label class="form-label">Expiry Month</label>
                                     <input type="text" class="form-control" id="cardExpMonth" placeholder="12"
-                                        maxlength="2">
+                                        maxlength="2" required>
                                 </div>
                                 <div class="col-4">
                                     <label class="form-label">Expiry Year</label>
                                     <input type="text" class="form-control" id="cardExpYear" placeholder="2028"
-                                        maxlength="4">
+                                        maxlength="4" required>
                                 </div>
                                 <div class="col-4">
-                                    <label class="form-label">Brand</label>
-                                    <select class="form-select" id="cardBrand">
-                                        <option value="visa">Visa</option>
-                                        <option value="mastercard">MasterCard</option>
-                                        <option value="rupay">RuPay</option>
-                                        <option value="amex">Amex</option>
-                                    </select>
+                                    <label class="form-label">CVV</label>
+                                    <div class="input-group">
+                                        <input type="password" class="form-control" id="cardCvv" placeholder="***"
+                                            maxlength="4" required>
+                                        <button class="btn btn-outline-secondary" type="button" tabindex="-1"
+                                            onclick="toggleVisibility('cardCvv', this)">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
                                 </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Brand</label>
+                                <select class="form-select" id="cardBrand">
+                                    <option value="visa">Visa</option>
+                                    <option value="mastercard">MasterCard</option>
+                                    <option value="rupay">RuPay</option>
+                                    <option value="amex">Amex</option>
+                                </select>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Credit Limit (₹)</label>
@@ -249,17 +266,58 @@
             ok ? showToast('Wallet created!', 'success') : showToast(data.error?.message || 'Failed', 'danger');
         }
 
+        // Add real-time card number formatting
+        document.getElementById('cardNumber')?.addEventListener('input', function (e) {
+            let value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+            value = value.match(/.{1,4}/g)?.join(' ') || value; // Add space every 4 digits
+            e.target.value = value;
+        });
+
+        function toggleVisibility(inputId, btn) {
+            const input = document.getElementById(inputId);
+            const icon = btn.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'bi bi-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'bi bi-eye';
+            }
+        }
+
         async function addCard(e) {
             e.preventDefault();
-            const { ok, data } = await api('POST', '/instruments/cards', {
-                card_number: document.getElementById('cardNumber').value.replace(/\s/g, ''),
+            const btn = e.target.querySelector('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+            btn.disabled = true;
+
+            const cardNumberStr = document.getElementById('cardNumber').value.replace(/\s+/g, ''); // Strip spaces
+            if (cardNumberStr.length < 13 || cardNumberStr.length > 19) {
+                alert('Please enter a valid card number length.');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                return;
+            }
+
+            const payload = {
+                card_number: cardNumberStr,
                 cardholder_name: document.getElementById('cardName').value,
                 expiry_month: document.getElementById('cardExpMonth').value,
                 expiry_year: document.getElementById('cardExpYear').value,
                 card_brand: document.getElementById('cardBrand').value,
-                credit_limit: parseFloat(document.getElementById('cardLimit').value)
-            });
-            ok ? showToast('Credit card added!', 'success') : showToast(data.error?.message || 'Failed', 'danger');
+                credit_limit: 100000 // default simulated limit
+            };
+
+            const { ok, data } = await api('POST', '/instruments/cards', payload);
+            if (ok) {
+                alert('Credit Card added successfully!');
+                window.location.href = 'methods.html';
+            } else {
+                alert(data?.error?.message || 'Failed to add card');
+            }
+            btn.innerHTML = originalText;
+            btn.disabled = false;
         }
 
         async function addBank(e) {

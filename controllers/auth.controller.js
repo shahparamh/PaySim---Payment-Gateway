@@ -10,7 +10,8 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
-const prisma = require('../config/prisma');
+const AppDataSource = require('../config/database');
+const { customers, merchants, admins, verification_codes } = require('../src/entities');
 const { success, error } = require('../utils/responseHelper');
 const { validateEmail, validatePassword } = require('../utils/validators');
 const emailService = require('../services/email.service');
@@ -100,9 +101,8 @@ exports.register = async (req, res, next) => {
             }
 
             // Check duplicate
-            const existing = await prisma.customers.findUnique({
-                where: { email }
-            });
+            const customerRepo = AppDataSource.getRepository(customers);
+            const existing = await customerRepo.findOneBy({ email });
             if (existing) {
                 return res.status(409).json(error('DUPLICATE', 'Email is already registered'));
             }
@@ -136,9 +136,8 @@ exports.register = async (req, res, next) => {
                 return res.status(400).json(error('VALIDATION', 'Invalid email format'));
             }
 
-            const existing = await prisma.merchants.findUnique({
-                where: { business_email }
-            });
+            const merchantRepo = AppDataSource.getRepository(merchants);
+            const existing = await merchantRepo.findOneBy({ business_email });
             if (existing) {
                 return res.status(409).json(error('DUPLICATE', 'Business email is already registered'));
             }
@@ -171,9 +170,8 @@ exports.register = async (req, res, next) => {
                 );
             }
 
-            const existing = await prisma.admins.findUnique({
-                where: { email }
-            });
+            const adminRepo = AppDataSource.getRepository(admins);
+            const existing = await adminRepo.findOneBy({ email });
             if (existing) {
                 return res.status(409).json(error('DUPLICATE', 'Admin email is already registered'));
             }
@@ -190,13 +188,12 @@ exports.register = async (req, res, next) => {
         const otp = generateOTP();
         const expiresAt = new Date(Date.now() + 10 * 60000); // 10 mins
 
-        await prisma.verification_codes.create({
-            data: {
-                email: userEmail,
-                code: otp,
-                type: 'register',
-                expires_at: expiresAt
-            }
+        const verificationRepo = AppDataSource.getRepository(verification_codes);
+        await verificationRepo.save({
+            email: userEmail,
+            code: otp,
+            type: 'register',
+            expires_at: expiresAt
         });
 
         console.log(`\n[SECURITY] Registration OTP for ${userEmail}: ${otp}\n`);
@@ -242,11 +239,14 @@ exports.login = async (req, res, next) => {
 
         let user;
         if (userType === 'customer') {
-            user = await prisma.customers.findUnique({ where: { email } });
+            const customerRepo = AppDataSource.getRepository(customers);
+            user = await customerRepo.findOneBy({ email });
         } else if (userType === 'merchant') {
-            user = await prisma.merchants.findUnique({ where: { business_email: email } });
+            const merchantRepo = AppDataSource.getRepository(merchants);
+            user = await merchantRepo.findOneBy({ business_email: email });
         } else {
-            user = await prisma.admins.findUnique({ where: { email } });
+            const adminRepo = AppDataSource.getRepository(admins);
+            user = await adminRepo.findOneBy({ email });
         }
 
         if (!user) {
@@ -272,13 +272,12 @@ exports.login = async (req, res, next) => {
         const otp = generateOTP();
         const expiresAt = new Date(Date.now() + 5 * 60000); // 5 mins for login
 
-        await prisma.verification_codes.create({
-            data: {
-                email: email,
-                code: otp,
-                type: 'login',
-                expires_at: expiresAt
-            }
+        const verificationRepo = AppDataSource.getRepository(verification_codes);
+        await verificationRepo.save({
+            email: email,
+            code: otp,
+            type: 'login',
+            expires_at: expiresAt
         });
 
         console.log(`\n[SECURITY] Login OTP for ${email}: ${otp}\n`);
@@ -307,31 +306,34 @@ exports.verifyLoginOTP = async (req, res, next) => {
 
         const userType = type || 'customer';
 
-        const verification = await prisma.verification_codes.findFirst({
-            where: {
-                email,
-                code,
-                type: 'login',
-                expires_at: { gt: new Date() }
-            },
-            orderBy: { created_at: 'desc' }
-        });
+        const verificationRepo = AppDataSource.getRepository(verification_codes);
+        const queryBuilder = verificationRepo.createQueryBuilder("vc");
+        const verification = await queryBuilder
+            .where("vc.email = :email", { email })
+            .andWhere("vc.code = :code", { code })
+            .andWhere("vc.type = :type", { type: 'login' })
+            .andWhere("vc.expires_at > :now", { now: new Date() })
+            .orderBy("vc.created_at", "DESC")
+            .getOne();
 
         if (!verification) {
             return res.status(401).json(error('INVALID_OTP', 'Invalid or expired OTP code'));
         }
 
         // Delete used code
-        await prisma.verification_codes.delete({ where: { id: verification.id } });
+        await verificationRepo.delete(verification.id);
 
         // Retrieve user
         let user;
         if (userType === 'customer') {
-            user = await prisma.customers.findUnique({ where: { email } });
+            const customerRepo = AppDataSource.getRepository(customers);
+            user = await customerRepo.findOneBy({ email });
         } else if (userType === 'merchant') {
-            user = await prisma.merchants.findUnique({ where: { business_email: email } });
+            const merchantRepo = AppDataSource.getRepository(merchants);
+            user = await merchantRepo.findOneBy({ business_email: email });
         } else {
-            user = await prisma.admins.findUnique({ where: { email } });
+            const adminRepo = AppDataSource.getRepository(admins);
+            user = await adminRepo.findOneBy({ email });
         }
 
         if (!user) {
@@ -366,57 +368,54 @@ exports.verifyRegistrationOTP = async (req, res, next) => {
             return res.status(400).json(error('VALIDATION', 'Email, OTP code, and registration data are required'));
         }
 
-        const verification = await prisma.verification_codes.findFirst({
-            where: {
-                email,
-                code,
-                type: 'register',
-                expires_at: { gt: new Date() }
-            },
-            orderBy: { created_at: 'desc' }
-        });
+        const verificationRepo = AppDataSource.getRepository(verification_codes);
+        const queryBuilder = verificationRepo.createQueryBuilder("vc");
+        const verification = await queryBuilder
+            .where("vc.email = :email", { email })
+            .andWhere("vc.code = :code", { code })
+            .andWhere("vc.type = :type", { type: 'register' })
+            .andWhere("vc.expires_at > :now", { now: new Date() })
+            .orderBy("vc.created_at", "DESC")
+            .getOne();
 
         if (!verification) {
             return res.status(401).json(error('INVALID_OTP', 'Invalid or expired OTP code'));
         }
 
         // Delete used code
-        await prisma.verification_codes.delete({ where: { id: verification.id } });
+        await verificationRepo.delete(verification.id);
 
         // Create user
         let user;
         if (type === 'customer') {
-            user = await prisma.customers.create({
-                data: {
-                    uuid: pending_data.uuid,
-                    first_name: pending_data.first_name,
-                    last_name: pending_data.last_name,
-                    email: pending_data.email,
-                    phone: pending_data.phone,
-                    password_hash: pending_data.passwordHash,
-                    pin_hash: pending_data.pinHash
-                }
+            const customerRepo = AppDataSource.getRepository(customers);
+            user = await customerRepo.save({
+                uuid: pending_data.uuid,
+                first_name: pending_data.first_name,
+                last_name: pending_data.last_name,
+                email: pending_data.email,
+                phone: pending_data.phone,
+                password_hash: pending_data.passwordHash,
+                pin_hash: pending_data.pinHash
             });
         } else if (type === 'merchant') {
-            user = await prisma.merchants.create({
-                data: {
-                    uuid: pending_data.uuid,
-                    business_name: pending_data.business_name,
-                    business_email: pending_data.business_email,
-                    phone: pending_data.phone,
-                    password_hash: pending_data.passwordHash,
-                    business_type: pending_data.business_type
-                }
+            const merchantRepo = AppDataSource.getRepository(merchants);
+            user = await merchantRepo.save({
+                uuid: pending_data.uuid,
+                business_name: pending_data.business_name,
+                business_email: pending_data.business_email,
+                phone: pending_data.phone,
+                password_hash: pending_data.passwordHash,
+                business_type: pending_data.business_type
             });
         } else if (type === 'admin') {
-            user = await prisma.admins.create({
-                data: {
-                    uuid: pending_data.uuid,
-                    name: pending_data.name,
-                    email: pending_data.email,
-                    password_hash: pending_data.passwordHash,
-                    role: pending_data.role
-                }
+            const adminRepo = AppDataSource.getRepository(admins);
+            user = await adminRepo.save({
+                uuid: pending_data.uuid,
+                name: pending_data.name,
+                email: pending_data.email,
+                password_hash: pending_data.passwordHash,
+                role: pending_data.role
             });
         }
 
@@ -454,11 +453,14 @@ exports.getProfile = async (req, res, next) => {
         let user;
 
         if (type === 'customer') {
-            user = await prisma.customers.findUnique({ where: { id } });
+            const customerRepo = AppDataSource.getRepository(customers);
+            user = await customerRepo.findOneBy({ id });
         } else if (type === 'merchant') {
-            user = await prisma.merchants.findUnique({ where: { id } });
+            const merchantRepo = AppDataSource.getRepository(merchants);
+            user = await merchantRepo.findOneBy({ id });
         } else {
-            user = await prisma.admins.findUnique({ where: { id } });
+            const adminRepo = AppDataSource.getRepository(admins);
+            user = await adminRepo.findOneBy({ id });
         }
 
         if (!user) {
@@ -494,11 +496,14 @@ exports.changePassword = async (req, res, next) => {
 
         let user;
         if (type === 'customer') {
-            user = await prisma.customers.findUnique({ where: { id }, select: { password_hash: true } });
+            const customerRepo = AppDataSource.getRepository(customers);
+            user = await customerRepo.findOne({ where: { id }, select: ['password_hash'] });
         } else if (type === 'merchant') {
-            user = await prisma.merchants.findUnique({ where: { id }, select: { password_hash: true } });
+            const merchantRepo = AppDataSource.getRepository(merchants);
+            user = await merchantRepo.findOne({ where: { id }, select: ['password_hash'] });
         } else {
-            user = await prisma.admins.findUnique({ where: { id }, select: { password_hash: true } });
+            const adminRepo = AppDataSource.getRepository(admins);
+            user = await adminRepo.findOne({ where: { id }, select: ['password_hash'] });
         }
 
         if (!user) {
@@ -513,11 +518,14 @@ exports.changePassword = async (req, res, next) => {
         const newHash = await bcrypt.hash(new_password, SALT_ROUNDS);
 
         if (type === 'customer') {
-            await prisma.customers.update({ where: { id }, data: { password_hash: newHash } });
+            const customerRepo = AppDataSource.getRepository(customers);
+            await customerRepo.update({ id }, { password_hash: newHash });
         } else if (type === 'merchant') {
-            await prisma.merchants.update({ where: { id }, data: { password_hash: newHash } });
+            const merchantRepo = AppDataSource.getRepository(merchants);
+            await merchantRepo.update({ id }, { password_hash: newHash });
         } else {
-            await prisma.admins.update({ where: { id }, data: { password_hash: newHash } });
+            const adminRepo = AppDataSource.getRepository(admins);
+            await adminRepo.update({ id }, { password_hash: newHash });
         }
 
         res.json(success('Password changed successfully'));
@@ -541,10 +549,8 @@ exports.setPaymentPin = async (req, res, next) => {
 
         const pinHash = await bcrypt.hash(pin, SALT_ROUNDS);
 
-        await prisma.customers.update({
-            where: { id },
-            data: { pin_hash: pinHash }
-        });
+        const customerRepo = AppDataSource.getRepository(customers);
+        await customerRepo.update({ id }, { pin_hash: pinHash });
 
         res.json(success('Payment PIN set successfully'));
     } catch (err) {

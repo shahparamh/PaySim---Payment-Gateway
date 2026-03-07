@@ -31,8 +31,8 @@ graph TB
     end
 
     subgraph "Data Layer"
-        SQLITE[("SQLite Database")]
-        PRISMA["Prisma ORM"]
+        ORACLE[("Oracle Database")]
+        TYPEORM["TypeORM"]
     end
 
     SIM_UI -->|"Simulated Payments"| ROUTER
@@ -54,14 +54,14 @@ graph TB
     INSTRUMENT --> BANK
     INSTRUMENT --> NETBANK
 
-    WALLET --> PRISMA --> SQLITE
-    CREDIT --> PRISMA --> SQLITE
-    BANK --> PRISMA --> SQLITE
-    NETBANK --> PRISMA --> SQLITE
+    WALLET --> TYPEORM --> ORACLE
+    CREDIT --> TYPEORM --> ORACLE
+    BANK --> TYPEORM --> ORACLE
+    NETBANK --> TYPEORM --> ORACLE
 
-    PAY_SESS --> PRISMA --> SQLITE
-    TXN_PROC --> PRISMA --> SQLITE
-    SIM_ENG --> PRISMA --> SQLITE
+    PAY_SESS --> TYPEORM --> ORACLE
+    TXN_PROC --> TYPEORM --> ORACLE
+    SIM_ENG --> TYPEORM --> ORACLE
 ```
 
 ---

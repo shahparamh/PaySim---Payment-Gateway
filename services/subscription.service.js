@@ -2,7 +2,8 @@
 // Subscription Service — services/subscription.service.js
 // ==========================================
 
-const prisma = require('../config/prisma');
+const AppDataSource = require('../config/database');
+const { subscriptions, subscription_payments } = require('../src/entities');
 const transactionService = require('./transaction.service');
 const { v4: uuidv4 } = require('uuid');
 
@@ -24,19 +25,18 @@ class SubscriptionService {
         // Calculate next billing date
         const nextBillingDate = this.calculateNextBillingDate(new Date(), billing_interval);
 
-        return await prisma.subscriptions.create({
-            data: {
-                subscription_id: uuidv4(),
-                customer_id: parseInt(customer_id),
-                merchant_id: parseInt(merchant_id),
-                plan_name,
-                amount: parseFloat(amount),
-                currency,
-                billing_interval,
-                next_billing_date: nextBillingDate,
-                payment_method_id: parseInt(payment_method_id),
-                status: 'active'
-            }
+        const subRepo = AppDataSource.getRepository(subscriptions);
+        return await subRepo.save({
+            subscription_id: uuidv4(),
+            customer_id: parseInt(customer_id),
+            merchant_id: parseInt(merchant_id),
+            plan_name,
+            amount: parseFloat(amount),
+            currency,
+            billing_interval,
+            next_billing_date: nextBillingDate,
+            payment_method_id: parseInt(payment_method_id),
+            status: 'active'
         });
     }
 
@@ -45,12 +45,12 @@ class SubscriptionService {
      */
     async processDueSubscriptions() {
         const now = new Date();
-        const due = await prisma.subscriptions.findMany({
-            where: {
-                next_billing_date: { lte: now },
-                status: 'active'
-            }
-        });
+        const subRepo = AppDataSource.getRepository(subscriptions);
+        const queryBuilder = subRepo.createQueryBuilder("sub");
+        const due = await queryBuilder
+            .where("sub.next_billing_date <= :now", { now })
+            .andWhere("sub.status = :status", { status: 'active' })
+            .getMany();
 
         console.log(`[SubscriptionManager] Found ${due.length} subscriptions due for billing.`);
 
@@ -73,20 +73,19 @@ class SubscriptionService {
                 });
 
                 // Record the subscription payment link
-                await prisma.subscription_payments.create({
-                    data: {
-                        subscription_id: sub.id,
-                        transaction_id: txn.txn_internal_id,
-                        billing_date: sub.next_billing_date,
-                        status: 'success'
-                    }
+                const subPayRepo = AppDataSource.getRepository(subscription_payments);
+                await subPayRepo.save({
+                    subscription_id: sub.id,
+                    transaction_id: txn.txn_internal_id,
+                    billing_date: sub.next_billing_date,
+                    status: 'success'
                 });
 
                 // Update next billing date
                 const nextDate = this.calculateNextBillingDate(sub.next_billing_date, sub.billing_interval);
-                await prisma.subscriptions.update({
-                    where: { id: sub.id },
-                    data: { next_billing_date: nextDate, updated_at: new Date() }
+                await subRepo.update({ id: sub.id }, {
+                    next_billing_date: nextDate,
+                    updated_at: new Date()
                 });
 
                 results.push({ id: sub.id, status: 'success' });
@@ -94,9 +93,10 @@ class SubscriptionService {
                 console.error(`[SubscriptionError] Failed to bill sub ${sub.id}:`, err.message);
 
                 // Update to failed status or retry later
-                await prisma.subscriptions.update({
-                    where: { id: sub.id },
-                    data: { status: 'past_due', updated_at: new Date() }
+                const subRepo = AppDataSource.getRepository(subscriptions);
+                await subRepo.update({ id: sub.id }, {
+                    status: 'past_due',
+                    updated_at: new Date()
                 });
 
                 results.push({ id: sub.id, status: 'failed', error: err.message });

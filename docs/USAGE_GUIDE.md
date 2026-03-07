@@ -12,10 +12,10 @@ The database comes pre-seeded with the following test accounts. Use these to log
 |---|---|---|---|---|
 | **Customer** | `john@doe.com` | `customer123` | `1234` | Standard user for making payments |
 | **Merchant** | `store@main.com` | `merchant123` | N/A | Business owner to view analytics & manage keys |
-| **Admin** | `admin@paysim.com` | `admin123` | N/A | System admin to view fraud alerts |
 
 > [!IMPORTANT]
-> **2FA Security**: All logins now require Email OTP verification. Ensure you have access to the pre-seeded account emails if using local SMTP, or check the terminal logs if the email service is mocked.
+> **Database Stack**: The system now runs on **Oracle DB**. Ensure your `.env` is configured with valid Oracle credentials.
+> **2FA Security**: All logins require Email OTP verification. Check the terminal logs if the email service is mocked.
 
 ---
 

@@ -35,7 +35,9 @@ exports.registerSchema = [
 exports.sessionSchema = [
     body('amount').isFloat({ min: 1 }).withMessage('Amount must be at least 1'),
     body('currency').optional().isLength({ min: 3, max: 3 }).withMessage('Currency must be a 3-letter code (e.g., INR)'),
-    body('callback_url').isURL().withMessage('Please provide a valid callback URL')
+    body('callback_url').optional().isURL({ require_tld: false }).withMessage('Please provide a valid callback URL'),
+    body('success_redirect_url').optional().isURL({ require_tld: false }).withMessage('Please provide a valid success redirect URL'),
+    body('failure_redirect_url').optional().isURL({ require_tld: false }).withMessage('Please provide a valid failure redirect URL')
 ];
 
 // Profile Update Validation

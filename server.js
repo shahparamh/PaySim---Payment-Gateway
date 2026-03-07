@@ -11,7 +11,7 @@ const morgan = require('morgan');
 const session = require('express-session');
 const path = require('path');
 
-const prisma = require('./config/prisma');
+const AppDataSource = require('./config/database');
 const { errorHandler } = require('./middleware/errorHandler');
 const { apiLogger } = require('./middleware/apiLogger');
 const { apiLimiter } = require('./middleware/rateLimiter');
@@ -112,7 +112,7 @@ app.get('/health', async (req, res) => {
 
     try {
         // Simple database query check
-        await prisma.$queryRaw`SELECT 1`;
+        await AppDataSource.query('SELECT 1 FROM DUAL');
         health.services.database = 'UP';
     } catch (err) {
         health.status = 'DEGRADED';
@@ -150,8 +150,8 @@ app.use(errorHandler);
 async function startServer() {
     try {
         // Verify database connection
-        await prisma.$connect();
-        console.log('✅ Prisma ORM connected successfully to SQLite');
+        await AppDataSource.initialize();
+        console.log('✅ TypeORM connected successfully to Oracle DB');
 
         app.listen(PORT, () => {
             console.log(`🚀 Payment Gateway running on http://localhost:${PORT}`);

@@ -3,7 +3,8 @@
 // ============================================================
 
 const { v4: uuidv4 } = require('uuid');
-const prisma = require('../config/prisma');
+const AppDataSource = require('../config/database');
+const { api_logs } = require('../src/entities');
 
 /**
  * Logs every API request/response to the api_logs table.
@@ -32,18 +33,17 @@ const apiLogger = (req, res, next) => {
             const merchantAppId = req.merchantApp ? req.merchantApp.id : null;
             const responseTimeMs = Date.now() - startTime;
 
-            await prisma.api_logs.create({
-                data: {
-                    merchant_app_id: merchantAppId,
-                    request_id: requestId,
-                    method: req.method,
-                    endpoint: req.originalUrl,
-                    status_code: res.statusCode,
-                    ip_address: req.ip || req.connection.remoteAddress,
-                    request_body: req.body ? JSON.stringify(req.body) : null,
-                    response_body: responseBody ? JSON.stringify(responseBody) : null,
-                    response_time_ms: responseTimeMs
-                }
+            const apiLogRepo = AppDataSource.getRepository(api_logs);
+            await apiLogRepo.save({
+                merchant_app_id: merchantAppId,
+                request_id: requestId,
+                method: req.method,
+                endpoint: req.originalUrl,
+                status_code: res.statusCode,
+                ip_address: req.ip || req.connection.remoteAddress,
+                request_body: req.body ? JSON.stringify(req.body) : null,
+                response_body: responseBody ? JSON.stringify(responseBody) : null,
+                response_time_ms: responseTimeMs
             });
         } catch (err) {
             // Logging failures should not crash the app

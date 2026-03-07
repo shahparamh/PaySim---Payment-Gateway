@@ -11,7 +11,8 @@
 //   4. Fraud rule evaluation (extensible)
 // ============================================================
 
-const prisma = require('../config/prisma');
+const AppDataSource = require('../config/database');
+const { transactions, fraud_alerts } = require('../src/entities');
 const riskService = require('./risk.service');
 
 // ============================================================
@@ -50,33 +51,34 @@ const FRAUD_RULES = [
 
 async function checkTransaction(transactionId) {
     // Fetch the full transaction
-    const txn = await prisma.transactions.findUnique({
+    const txnRepo = AppDataSource.getRepository(transactions);
+    const txn = await txnRepo.findOne({
         where: { id: transactionId },
-        include: { payment_methods: { select: { method_type: true } } }
+        relations: ['payment_methods']
     });
 
     if (!txn) return { alerts: [] };
 
     const alerts = [];
 
+    const alertRepo = AppDataSource.getRepository(fraud_alerts);
+
     // Evaluate each rule
     for (const rule of FRAUD_RULES) {
         if (rule.check(txn)) {
             // Check if this alert already exists (from trigger)
-            const existing = await prisma.fraud_alerts.findFirst({
+            const existing = await alertRepo.findOne({
                 where: { transaction_id: transactionId, alert_type: rule.name }
             });
 
             if (!existing) {
                 // Insert only if trigger didn't already catch it
-                const result = await prisma.fraud_alerts.create({
-                    data: {
-                        transaction_id: transactionId,
-                        customer_id: txn.customer_id,
-                        alert_type: rule.name,
-                        severity: typeof rule.severity === 'function' ? rule.severity(txn.amount) : rule.severity,
-                        description: rule.description(txn)
-                    }
+                const result = await alertRepo.save({
+                    transaction_id: transactionId,
+                    customer_id: txn.customer_id,
+                    alert_type: rule.name,
+                    severity: typeof rule.severity === 'function' ? rule.severity(txn.amount) : rule.severity,
+                    description: rule.description(txn)
                 });
                 alerts.push({ id: result.id, type: rule.name });
             }
@@ -98,30 +100,29 @@ async function checkVelocity(customerId, currentTxnId) {
     const alerts = [];
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
 
-    const count = await prisma.transactions.count({
-        where: {
-            customer_id: customerId,
-            created_at: { gte: tenMinutesAgo },
-            NOT: { id: currentTxnId }
-        }
-    });
+    const txnRepo = AppDataSource.getRepository(transactions);
+    const queryBuilder = txnRepo.createQueryBuilder("txn");
+    const count = await queryBuilder
+        .where("txn.customer_id = :customerId", { customerId })
+        .andWhere("txn.created_at >= :tenMinutesAgo", { tenMinutesAgo })
+        .andWhere("txn.id != :currentTxnId", { currentTxnId })
+        .getCount();
 
     if (count >= 5) {
         // Check if trigger already created this alert
-        const existing = await prisma.fraud_alerts.findFirst({
+        const alertRepo = AppDataSource.getRepository(fraud_alerts);
+        const existing = await alertRepo.findOne({
             where: { transaction_id: currentTxnId, alert_type: 'velocity_breach' }
         });
 
         if (!existing) {
             const severity = count >= 10 ? 'critical' : count >= 7 ? 'high' : 'medium';
-            const result = await prisma.fraud_alerts.create({
-                data: {
-                    transaction_id: currentTxnId,
-                    customer_id: customerId,
-                    alert_type: 'velocity_breach',
-                    severity: severity,
-                    description: `Velocity breach: ${count + 1} transactions in 10 minutes`
-                }
+            const result = await alertRepo.save({
+                transaction_id: currentTxnId,
+                customer_id: customerId,
+                alert_type: 'velocity_breach',
+                severity: severity,
+                description: `Velocity breach: ${count + 1} transactions in 10 minutes`
             });
             alerts.push({ id: result.id, type: 'velocity_breach' });
         }
@@ -142,23 +143,17 @@ async function getAlerts({ status, severity, alertType, page = 1, limit = 20 }) 
     if (severity) where.severity = severity;
     if (alertType) where.alert_type = alertType;
 
-    const [alerts, total] = await Promise.all([
-        prisma.fraud_alerts.findMany({
-            where,
-            include: {
-                transactions: true,
-                customers: true,
-                admins: { select: { name: true } }
-            },
-            orderBy: [
-                { severity: 'asc' }, // Note: This doesn't strictly follow 'critical,high...' unless enum order is right.
-                { created_at: 'desc' }
-            ],
-            take: limit,
-            skip: skip
-        }),
-        prisma.fraud_alerts.count({ where })
-    ]);
+    const alertRepo = AppDataSource.getRepository(fraud_alerts);
+    const [alerts, total] = await alertRepo.findAndCount({
+        where,
+        relations: ['transactions', 'customers', 'admins'],
+        order: {
+            severity: 'ASC',
+            created_at: 'DESC'
+        },
+        take: limit,
+        skip: skip
+    });
 
     // Flatten for frontend
     const formatted = alerts.map(a => ({
@@ -186,15 +181,10 @@ async function getAlerts({ status, severity, alertType, page = 1, limit = 20 }) 
 // ============================================================
 
 async function getAlertDetail(alertId) {
-    const alert = await prisma.fraud_alerts.findUnique({
+    const alertRepo = AppDataSource.getRepository(fraud_alerts);
+    const alert = await alertRepo.findOne({
         where: { id: parseInt(alertId) },
-        include: {
-            transactions: {
-                include: { payment_methods: { select: { method_type: true } } }
-            },
-            customers: true,
-            admins: { select: { name: true } }
-        }
+        relations: ['transactions', 'transactions.payment_methods', 'customers', 'admins']
     });
 
     if (!alert) return null;
@@ -221,9 +211,10 @@ async function getAlertDetail(alertId) {
 
     // Get customer's recent transaction history for context
     if (alert.customer_id) {
-        formatted.customer_recent_transactions = await prisma.transactions.findMany({
+        const txnRepo = AppDataSource.getRepository(transactions);
+        formatted.customer_recent_transactions = await txnRepo.find({
             where: { customer_id: alert.customer_id },
-            orderBy: { created_at: 'desc' },
+            order: { created_at: 'DESC' },
             take: 10
         });
     }
@@ -245,18 +236,18 @@ async function resolveAlert(alertId, adminId, resolution, notes = null) {
     }
 
     try {
-        const alert = await prisma.fraud_alerts.update({
-            where: {
-                id: parseInt(alertId),
-                status: { in: ['open', 'investigating'] }
-            },
-            data: {
-                status: resolution,
-                resolved_by: adminId,
-                resolved_at: new Date()
-            }
+        const alertRepo = AppDataSource.getRepository(fraud_alerts);
+        const alert = await alertRepo.findOne({ where: { id: parseInt(alertId) } });
+        if (!alert || !['open', 'investigating'].includes(alert.status)) {
+            throw new Error('Not Found');
+        }
+
+        await alertRepo.update({ id: parseInt(alertId) }, {
+            status: resolution,
+            resolved_by: adminId,
+            resolved_at: new Date()
         });
-        return { id: alertId, status: alert.status };
+        return { id: alertId, status: resolution };
     } catch (err) {
         throw Object.assign(
             new Error('Alert not found or already resolved'),
@@ -270,32 +261,37 @@ async function resolveAlert(alertId, adminId, resolution, notes = null) {
 // ============================================================
 
 async function getAlertStats() {
-    const [byStatus, bySeverity, byType, last24hCount] = await Promise.all([
-        prisma.fraud_alerts.groupBy({
-            by: ['status'],
-            _count: true
-        }),
-        prisma.fraud_alerts.groupBy({
-            by: ['severity'],
-            where: { status: 'open' },
-            _count: true
-        }),
-        prisma.fraud_alerts.groupBy({
-            by: ['alert_type'],
-            where: { status: 'open' },
-            _count: true
-        }),
-        prisma.fraud_alerts.count({
-            where: {
-                created_at: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
-            }
-        })
-    ]);
+    const alertRepo = AppDataSource.getRepository(fraud_alerts);
+    const queryBuilder = alertRepo.createQueryBuilder("alert");
+
+    const byStatusRaw = await queryBuilder
+        .select("alert.status", "status")
+        .addSelect("COUNT(alert.id)", "_count")
+        .groupBy("alert.status")
+        .getRawMany();
+
+    const bySeverityRaw = await alertRepo.createQueryBuilder("alert")
+        .select("alert.severity", "severity")
+        .addSelect("COUNT(alert.id)", "_count")
+        .where("alert.status = :status", { status: 'open' })
+        .groupBy("alert.severity")
+        .getRawMany();
+
+    const byTypeRaw = await alertRepo.createQueryBuilder("alert")
+        .select("alert.alert_type", "alert_type")
+        .addSelect("COUNT(alert.id)", "_count")
+        .where("alert.status = :status", { status: 'open' })
+        .groupBy("alert.alert_type")
+        .getRawMany();
+
+    const last24hCount = await alertRepo.createQueryBuilder("alert")
+        .where("alert.created_at >= :time", { time: new Date(Date.now() - 24 * 60 * 60 * 1000) })
+        .getCount();
 
     return {
-        by_status: byStatus.map(s => ({ status: s.status, count: s._count })),
-        open_by_severity: bySeverity.map(s => ({ severity: s.severity, count: s._count })),
-        open_by_type: byType.map(t => ({ alert_type: t.alert_type, count: t._count })),
+        by_status: byStatusRaw.map(s => ({ status: s.status, count: parseInt(s._count, 10) })),
+        open_by_severity: bySeverityRaw.map(s => ({ severity: s.severity, count: parseInt(s._count, 10) })),
+        open_by_type: byTypeRaw.map(t => ({ alert_type: t.alert_type, count: parseInt(t._count, 10) })),
         last_24h: last24hCount
     };
 }
@@ -305,19 +301,16 @@ async function getAlertStats() {
 // ============================================================
 
 async function getCustomerRisk(customerId) {
-    const counts = await prisma.fraud_alerts.aggregate({
-        where: { customer_id: parseInt(customerId) },
-        _count: { _all: true },
-        _sum: {
-            open_alerts: true, // This is tricky because sum needs numeric
-        }
-    });
+    const alertRepo = AppDataSource.getRepository(fraud_alerts);
 
     // Aggregate is simpler with separate counts if needed
     const [total, open, critical] = await Promise.all([
-        prisma.fraud_alerts.count({ where: { customer_id: parseInt(customerId) } }),
-        prisma.fraud_alerts.count({ where: { customer_id: parseInt(customerId), status: 'open' } }),
-        prisma.fraud_alerts.count({ where: { customer_id: parseInt(customerId), severity: { in: ['high', 'critical'] } } })
+        alertRepo.count({ where: { customer_id: parseInt(customerId) } }),
+        alertRepo.count({ where: { customer_id: parseInt(customerId), status: 'open' } }),
+        alertRepo.createQueryBuilder("alert")
+            .where("alert.customer_id = :customerId", { customerId: parseInt(customerId) })
+            .andWhere("alert.severity IN (:...severities)", { severities: ['high', 'critical'] })
+            .getCount()
     ]);
 
     let riskLevel = 'low';

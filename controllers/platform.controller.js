@@ -15,7 +15,8 @@
 
 const sessionService = require('../services/session.service');
 const transactionService = require('../services/transaction.service');
-const prisma = require('../config/prisma');
+const AppDataSource = require('../config/database');
+const { transactions, customers, credit_cards, bank_accounts, payment_methods, merchant_apps, api_keys, payment_sessions, api_logs } = require('../src/entities');
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
 const { success, error } = require('../utils/responseHelper');
@@ -111,9 +112,10 @@ exports.getPayment = async (req, res, next) => {
         // If session has been completed, include transaction details
         let transaction = null;
         if (['completed', 'failed'].includes(session.status)) {
-            transaction = await prisma.transactions.findFirst({
+            const txnRepo = AppDataSource.getRepository(transactions);
+            transaction = await txnRepo.findOne({
                 where: { session_id: session.id },
-                orderBy: { created_at: 'desc' }
+                order: { created_at: 'DESC' }
             });
         }
 
@@ -159,17 +161,16 @@ exports.processPayment = async (req, res, next) => {
             customerId = req.user.id;
         } else if (email) {
             // Find or create guest customer
-            let guest = await prisma.customers.findUnique({ where: { email } });
+            const customerRepo = AppDataSource.getRepository(customers);
+            let guest = await customerRepo.findOneBy({ email });
             if (!guest) {
-                guest = await prisma.customers.create({
-                    data: {
-                        uuid: uuidv4(),
-                        first_name: 'Guest',
-                        last_name: 'Customer',
-                        email: email,
-                        password_hash: 'guest_bypass', // Placeholder
-                        status: 'active'
-                    }
+                guest = await customerRepo.save({
+                    uuid: uuidv4(),
+                    first_name: 'Guest',
+                    last_name: 'Customer',
+                    email: email,
+                    password_hash: 'guest_bypass', // Placeholder
+                    status: 'active'
                 });
             }
             customerId = guest.id;
@@ -189,45 +190,42 @@ exports.processPayment = async (req, res, next) => {
 
             // Create the underlying instrument for the simulator to track
             if (method_type === 'card') {
-                const card = await prisma.credit_cards.create({
-                    data: {
-                        customer_id: customerId,
-                        card_number_hash: crypto.createHash('sha256').update(details.card_number || '4242424242424242').digest('hex'),
-                        card_last_four: details.last4 || '4242',
-                        card_brand: details.brand || 'visa',
-                        cardholder_name: details.cardholder_name || 'Guest',
-                        expiry_month: details.expiry_month || '12',
-                        expiry_year: details.expiry_year || '2030',
-                        credit_limit: 1000000,
-                        used_credit: 0
-                    }
+                const cardRepo = AppDataSource.getRepository(credit_cards);
+                const card = await cardRepo.save({
+                    customer_id: customerId,
+                    card_number_hash: crypto.createHash('sha256').update(details.card_number || '4242424242424242').digest('hex'),
+                    card_last_four: details.last4 || '4242',
+                    card_brand: details.brand || 'visa',
+                    cardholder_name: details.cardholder_name || 'Guest',
+                    expiry_month: details.expiry_month || '12',
+                    expiry_year: details.expiry_year || '2030',
+                    credit_limit: 1000000,
+                    used_credit: 0
                 });
                 instrumentId = card.id;
             } else {
                 // For UPI/Bank, we create a bank account
-                const bankAccount = await prisma.bank_accounts.create({
-                    data: {
-                        customer_id: customerId,
-                        account_number_hash: crypto.createHash('sha256').update(details.upi_id || details.bank || 'guest_account').digest('hex'),
-                        account_last_four: '9999',
-                        bank_name: details.bank || 'UPI Central',
-                        ifsc_code: 'GUEST0001',
-                        account_holder_name: details.account_holder_name || 'Guest',
-                        balance: 1000000
-                    }
+                const bankRepo = AppDataSource.getRepository(bank_accounts);
+                const bankAccount = await bankRepo.save({
+                    customer_id: customerId,
+                    account_number_hash: crypto.createHash('sha256').update(details.upi_id || details.bank || 'guest_account').digest('hex'),
+                    account_last_four: '9999',
+                    bank_name: details.bank || 'UPI Central',
+                    ifsc_code: 'GUEST0001',
+                    account_holder_name: details.account_holder_name || 'Guest',
+                    balance: 1000000
                 });
                 instrumentId = bankAccount.id;
             }
 
             // Create the payment method bridge
-            const method = await prisma.payment_methods.create({
-                data: {
-                    customer_id: customerId,
-                    method_type: method_type === 'card' ? 'credit_card' : 'bank_account',
-                    instrument_id: instrumentId,
-                    is_default: false,
-                    status: 'active'
-                }
+            const methodRepo = AppDataSource.getRepository(payment_methods);
+            const method = await methodRepo.save({
+                customer_id: customerId,
+                method_type: method_type === 'card' ? 'credit_card' : 'bank_account',
+                instrument_id: instrumentId,
+                is_default: false,
+                status: 'active'
             });
             finalPaymentMethodId = method.id;
         }
@@ -321,9 +319,10 @@ exports.getPaymentStatus = async (req, res, next) => {
 
         // Lookup by txn_id
         if (txn_id) {
-            const txn = await prisma.transactions.findFirst({
+            const txnRepo = AppDataSource.getRepository(transactions);
+            const txn = await txnRepo.findOne({
                 where: { txn_id },
-                include: { payment_methods: { select: { method_type: true } } }
+                relations: ['payment_methods']
             });
 
             if (!txn) {
@@ -349,9 +348,10 @@ exports.getPaymentStatus = async (req, res, next) => {
             }
 
             // Get associated transaction
-            const txn = await prisma.transactions.findFirst({
+            const txnRepo = AppDataSource.getRepository(transactions);
+            const txn = await txnRepo.findOne({
                 where: { session_id: session.id },
-                orderBy: { created_at: 'desc' }
+                order: { created_at: 'DESC' }
             });
 
             return res.json(success('Payment status retrieved', {
@@ -404,28 +404,26 @@ exports.registerApp = async (req, res, next) => {
             );
         }
 
-        const app = await prisma.merchant_apps.create({
-            data: {
-                merchant_id: merchantId,
-                app_name: app_name,
-                app_uuid: appUuid,
-                website_url: website_url || null,
-                callback_url: callback_url,
-                environment: env
-            }
+        const appRepo = AppDataSource.getRepository(merchant_apps);
+        const app = await appRepo.save({
+            merchant_id: merchantId,
+            app_name: app_name,
+            app_uuid: appUuid,
+            website_url: website_url || null,
+            callback_url: callback_url,
+            environment: env
         });
 
         // Auto-generate a secret API key for the new app
         const rawKey = `sk_${env === 'production' ? 'live' : 'test'}_${crypto.randomBytes(32).toString('hex')}`;
         const keyPrefix = rawKey.substring(0, 8);
 
-        await prisma.api_keys.create({
-            data: {
-                merchant_app_id: app.id,
-                key_prefix: keyPrefix,
-                key_hash: rawKey,
-                key_type: 'secret'
-            }
+        const apiKeyRepo = AppDataSource.getRepository(api_keys);
+        await apiKeyRepo.save({
+            merchant_app_id: app.id,
+            key_prefix: keyPrefix,
+            key_hash: rawKey,
+            key_type: 'secret'
         });
 
         res.status(201).json(success('Merchant app registered', {
@@ -463,9 +461,8 @@ exports.createApiKey = async (req, res, next) => {
         }
 
         // Verify ownership
-        const app = await prisma.merchant_apps.findFirst({
-            where: { id: parseInt(merchant_app_id), merchant_id: merchantId }
-        });
+        const appRepo = AppDataSource.getRepository(merchant_apps);
+        const app = await appRepo.findOneBy({ id: parseInt(merchant_app_id), merchant_id: merchantId });
         if (!app) {
             return res.status(403).json(
                 error('FORBIDDEN', 'App does not belong to this merchant')
@@ -478,13 +475,12 @@ exports.createApiKey = async (req, res, next) => {
         const rawKey = `${prefix}_${envLabel}_${crypto.randomBytes(32).toString('hex')}`;
         const keyPrefix = rawKey.substring(0, 8);
 
-        await prisma.api_keys.create({
-            data: {
-                merchant_app_id: parseInt(merchant_app_id),
-                key_prefix: keyPrefix,
-                key_hash: rawKey,
-                key_type: key_type
-            }
+        const apiKeyRepo = AppDataSource.getRepository(api_keys);
+        await apiKeyRepo.save({
+            merchant_app_id: parseInt(merchant_app_id),
+            key_prefix: keyPrefix,
+            key_hash: rawKey,
+            key_type: key_type
         });
 
         res.status(201).json(success('API key generated', {
@@ -506,10 +502,11 @@ exports.createApiKey = async (req, res, next) => {
 exports.getApiKeys = async (req, res, next) => {
     try {
         const merchantId = req.user.id;
-        const keys = await prisma.api_keys.findMany({
+        const apiKeyRepo = AppDataSource.getRepository(api_keys);
+        const keys = await apiKeyRepo.find({
             where: { merchant_apps: { merchant_id: merchantId } },
-            include: { merchant_apps: { select: { app_name: true, environment: true } } },
-            orderBy: { created_at: 'desc' }
+            relations: ['merchant_apps'],
+            order: { created_at: 'DESC' }
         });
 
         // Flatten for compatibility
@@ -538,13 +535,17 @@ exports.getDashboard = async (req, res, next) => {
     try {
         const merchantId = req.user.id;
 
+        const txnRepo = AppDataSource.getRepository(transactions);
+
         // Aggregate stats
-        const summary = await prisma.transactions.groupBy({
-            by: ['status'],
-            where: { merchant_id: merchantId, mode: 'platform' },
-            _count: true,
-            _sum: { amount: true }
-        });
+        const summaryRaw = await txnRepo.createQueryBuilder("txn")
+            .where("txn.merchant_id = :merchantId", { merchantId })
+            .andWhere("txn.mode = :mode", { mode: 'platform' })
+            .select("txn.status", "status")
+            .addSelect("COUNT(txn.id)", "_count")
+            .addSelect("SUM(txn.amount)", "_sum_amount")
+            .groupBy("txn.status")
+            .getRawMany();
 
         const stats = {
             total_transactions: 0,
@@ -553,85 +554,93 @@ exports.getDashboard = async (req, res, next) => {
             total_revenue: 0
         };
 
-        summary.forEach(group => {
-            stats.total_transactions += group._count;
+        summaryRaw.forEach(group => {
+            const count = parseInt(group._count, 10);
+            stats.total_transactions += count;
             if (group.status === 'success') {
-                stats.successful = group._count;
-                stats.total_revenue = parseFloat(group._sum.amount || 0);
+                stats.successful = count;
+                stats.total_revenue = parseFloat(group._sum_amount || 0);
             } else if (group.status === 'failed') {
-                stats.failed = group._count;
+                stats.failed = count;
             }
         });
 
-        // Chart Data (Last 7 Days vs Previous 7 Days)
+        // Chart Data (Last N Days vs Previous N Days)
+        const range = parseInt(req.query.range) || 7;
+        const daysToShow = [7, 30].includes(range) ? range : 7;
+
         const today = new Date();
         const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
-        const thisWeekStart = new Date(startOfToday);
-        thisWeekStart.setDate(thisWeekStart.getDate() - 6);
+        const thisPeriodStart = new Date(startOfToday);
+        thisPeriodStart.setDate(thisPeriodStart.getDate() - (daysToShow - 1));
 
-        const lastWeekStart = new Date(thisWeekStart);
-        lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+        const lastPeriodStart = new Date(thisPeriodStart);
+        lastPeriodStart.setDate(lastPeriodStart.getDate() - daysToShow);
 
-        const recentTxnsForChart = await prisma.transactions.findMany({
-            where: {
-                merchant_id: merchantId,
-                mode: 'platform',
-                status: 'success',
-                created_at: { gte: lastWeekStart }
-            },
-            select: { amount: true, created_at: true }
-        });
+        const recentTxnsForChart = await txnRepo.createQueryBuilder("txn")
+            .where("txn.merchant_id = :merchantId", { merchantId })
+            .andWhere("txn.mode = :mode", { mode: 'platform' })
+            .andWhere("txn.status = :status", { status: 'success' })
+            .andWhere("txn.created_at >= :lastPeriodStart", { lastPeriodStart })
+            .select(['txn.amount', 'txn.created_at'])
+            .getMany();
 
         const labels = [];
-        const thisWeekData = [];
-        const lastWeekData = [];
-        const thisWeekMap = new Map();
-        const lastWeekMap = new Map();
+        const thisPeriodData = [];
+        const lastPeriodData = [];
+        const thisPeriodMap = new Map();
+        const lastPeriodMap = new Map();
 
-        for (let i = 0; i < 7; i++) {
-            const dThis = new Date(thisWeekStart);
+        // Initialize maps with zero for all days in the range
+        for (let i = 0; i < daysToShow; i++) {
+            const dThis = new Date(thisPeriodStart);
             dThis.setDate(dThis.getDate() + i);
-            labels.push(dThis.toLocaleDateString('en-US', { weekday: 'short' }));
-            thisWeekMap.set(dThis.toDateString(), 0);
 
-            const dLast = new Date(lastWeekStart);
+            // Format label: "MMM DD" for 7 days or 30 days
+            labels.push(dThis.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+            thisPeriodMap.set(dThis.toDateString(), 0);
+
+            const dLast = new Date(lastPeriodStart);
             dLast.setDate(dLast.getDate() + i);
-            lastWeekMap.set(dLast.toDateString(), 0);
+            lastPeriodMap.set(dLast.toDateString(), 0);
         }
 
+        // Aggregate transactions by day
         recentTxnsForChart.forEach(t => {
             const dStr = t.created_at.toDateString();
-            if (thisWeekMap.has(dStr)) {
-                thisWeekMap.set(dStr, thisWeekMap.get(dStr) + parseFloat(t.amount || 0));
-            } else if (lastWeekMap.has(dStr)) {
-                lastWeekMap.set(dStr, lastWeekMap.get(dStr) + parseFloat(t.amount || 0));
+            if (thisPeriodMap.has(dStr)) {
+                thisPeriodMap.set(dStr, thisPeriodMap.get(dStr) + parseFloat(t.amount || 0));
+            } else if (lastPeriodMap.has(dStr)) {
+                lastPeriodMap.set(dStr, lastPeriodMap.get(dStr) + parseFloat(t.amount || 0));
             }
         });
 
-        for (let i = 0; i < 7; i++) {
-            const dThis = new Date(thisWeekStart);
+        // Convert map to arrays
+        for (let i = 0; i < daysToShow; i++) {
+            const dThis = new Date(thisPeriodStart);
             dThis.setDate(dThis.getDate() + i);
-            thisWeekData.push(thisWeekMap.get(dThis.toDateString()));
+            thisPeriodData.push(thisPeriodMap.get(dThis.toDateString()));
 
-            const dLast = new Date(lastWeekStart);
+            const dLast = new Date(lastPeriodStart);
             dLast.setDate(dLast.getDate() + i);
-            lastWeekData.push(lastWeekMap.get(dLast.toDateString()));
+            lastPeriodData.push(lastPeriodMap.get(dLast.toDateString()));
         }
 
-        const chart = { labels, this_week: thisWeekData, last_week: lastWeekData };
+        const chart = { labels, this_period: thisPeriodData, last_period: lastPeriodData };
 
         // Recent transactions
-        const recent = await prisma.transactions.findMany({
+        const recent = await txnRepo.find({
             where: { merchant_id: merchantId, mode: 'platform' },
-            orderBy: { created_at: 'desc' },
+            order: { created_at: 'DESC' },
             take: 10
         });
 
         // Active sessions
-        const sessions = await prisma.payment_sessions.findMany({
+        const sessionRepo = AppDataSource.getRepository(payment_sessions);
+        const sessions = await sessionRepo.find({
             where: { merchant_apps: { merchant_id: merchantId } },
-            orderBy: { created_at: 'desc' },
+            order: { created_at: 'DESC' },
             take: 10
         });
 
@@ -657,21 +666,17 @@ exports.getTransactions = async (req, res, next) => {
         const limit = parseInt(req.query.limit) || 20;
         const skip = (page - 1) * limit;
 
-        const [transactions, total] = await Promise.all([
-            prisma.transactions.findMany({
-                where: { merchant_id: merchantId, mode: 'platform' },
-                include: { payment_methods: { select: { method_type: true } } },
-                orderBy: { created_at: 'desc' },
-                take: limit,
-                skip: skip
-            }),
-            prisma.transactions.count({
-                where: { merchant_id: merchantId, mode: 'platform' }
-            })
-        ]);
+        const txnRepo = AppDataSource.getRepository(transactions);
+        const [transactionsRes, total] = await txnRepo.findAndCount({
+            where: { merchant_id: merchantId, mode: 'platform' },
+            relations: ['payment_methods'],
+            order: { created_at: 'DESC' },
+            take: limit,
+            skip: skip
+        });
 
         // Flatten method_type
-        const formatted = transactions.map(t => ({
+        const formatted = transactionsRes.map(t => ({
             ...t,
             method_type: t.payment_methods?.method_type || 'unknown'
         }));
@@ -711,17 +716,16 @@ async function fireWebhook(callbackUrl, payload) {
 
     // Log webhook to api_logs table for audit
     try {
-        await prisma.api_logs.create({
-            data: {
-                request_id: webhookId,
-                method: 'POST',
-                endpoint: `WEBHOOK → ${callbackUrl}`,
-                status_code: 200,
-                ip_address: '127.0.0.1',
-                request_body: JSON.stringify(payload),
-                response_body: JSON.stringify({ received: true, simulated: true }),
-                response_time_ms: 0
-            }
+        const apiLogRepo = AppDataSource.getRepository(api_logs);
+        await apiLogRepo.save({
+            request_id: webhookId,
+            method: 'POST',
+            endpoint: `WEBHOOK → ${callbackUrl}`,
+            status_code: 200,
+            ip_address: '127.0.0.1',
+            request_body: JSON.stringify(payload),
+            response_body: JSON.stringify({ received: true, simulated: true }),
+            response_time_ms: 0
         });
     } catch (err) {
         console.error('⚠️  Webhook log failed:', err.message);

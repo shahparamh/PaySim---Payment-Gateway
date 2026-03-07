@@ -9,7 +9,8 @@
 // ============================================================
 
 const jwt = require('jsonwebtoken');
-const prisma = require('../config/prisma');
+const AppDataSource = require('../config/database');
+const { customers, merchants, admins, api_keys } = require('../src/entities');
 const { error } = require('../utils/responseHelper');
 
 // ── Table config helper ─────────────────────────────────
@@ -58,12 +59,15 @@ const authenticate = async (req, res, next) => {
         // Verify user still exists and is active in the database
         let userRecord = null;
         if (decoded.type === 'merchant') {
-            userRecord = await prisma.merchants.findUnique({ where: { id: decoded.id }, select: { id: true, status: true } });
+            const merchantRepo = AppDataSource.getRepository(merchants);
+            userRecord = await merchantRepo.findOne({ where: { id: decoded.id }, select: ['id', 'status'] });
         } else if (decoded.type === 'admin') {
-            userRecord = await prisma.admins.findUnique({ where: { id: decoded.id }, select: { id: true, name: true } });
+            const adminRepo = AppDataSource.getRepository(admins);
+            userRecord = await adminRepo.findOne({ where: { id: decoded.id }, select: ['id', 'name'] });
             if (userRecord) userRecord.status = 'active'; // Admins don't have status in schema
         } else {
-            userRecord = await prisma.customers.findUnique({ where: { id: decoded.id }, select: { id: true, status: true } });
+            const customerRepo = AppDataSource.getRepository(customers);
+            userRecord = await customerRepo.findOne({ where: { id: decoded.id }, select: ['id', 'status'] });
         }
 
         if (!userRecord) {
@@ -120,9 +124,10 @@ const authenticateApiKey = async (req, res, next) => {
 
         // Look up by prefix (first 8 chars)
         const prefix = apiKey.substring(0, 8);
-        const keyRecord = await prisma.api_keys.findFirst({
+        const apiKeyRepo = AppDataSource.getRepository(api_keys);
+        const keyRecord = await apiKeyRepo.findOne({
             where: { key_prefix: prefix, is_active: true },
-            include: { merchant_apps: true }
+            relations: ['merchant_apps']
         });
 
         if (!keyRecord) {
@@ -146,10 +151,8 @@ const authenticateApiKey = async (req, res, next) => {
         }
 
         // Update last_used_at
-        await prisma.api_keys.update({
-            where: { id: keyRecord.id },
-            data: { last_used_at: new Date() }
-        });
+        const apiKeyRepoForUpdate = AppDataSource.getRepository(api_keys);
+        await apiKeyRepoForUpdate.update({ id: keyRecord.id }, { last_used_at: new Date() });
 
         req.merchantApp = {
             id: keyRecord.merchant_app_id,

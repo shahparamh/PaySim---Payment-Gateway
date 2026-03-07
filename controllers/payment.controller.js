@@ -3,7 +3,8 @@
 // ============================================================
 
 const transactionService = require('../services/transaction.service');
-const prisma = require('../config/prisma');
+const AppDataSource = require('../config/database');
+const { transactions, refunds } = require('../src/entities');
 const { v4: uuidv4 } = require('uuid');
 const { success, error } = require('../utils/responseHelper');
 
@@ -13,9 +14,10 @@ const { success, error } = require('../utils/responseHelper');
  */
 exports.getTransaction = async (req, res, next) => {
     try {
-        const txn = await prisma.transactions.findFirst({
+        const txnRepo = AppDataSource.getRepository(transactions);
+        const txn = await txnRepo.findOne({
             where: { txn_id: req.params.txnId },
-            include: { payment_methods: { select: { method_type: true } } }
+            relations: ['payment_methods']
         });
 
         if (!txn) {
@@ -44,9 +46,8 @@ exports.initiateRefund = async (req, res, next) => {
         const { txnId } = req.params;
 
         // Fetch original transaction
-        const txn = await prisma.transactions.findFirst({
-            where: { txn_id: txnId, status: 'success' }
-        });
+        const txnRepo = AppDataSource.getRepository(transactions);
+        const txn = await txnRepo.findOneBy({ txn_id: txnId, status: 'success' });
 
         if (!txn) {
             return res.status(404).json(
@@ -57,15 +58,14 @@ exports.initiateRefund = async (req, res, next) => {
         const refundAmount = amount ? parseFloat(amount) : parseFloat(txn.amount);
 
         // Check total refunded amount doesn't exceed original
-        const refunded = await prisma.refunds.aggregate({
-            where: {
-                transaction_id: txn.id,
-                status: { in: ['initiated', 'processing', 'completed'] }
-            },
-            _sum: { amount: true }
-        });
+        const refundRepo = AppDataSource.getRepository(refunds);
+        const refundedRaw = await refundRepo.createQueryBuilder("r")
+            .where("r.transaction_id = :txnId", { txnId: txn.id })
+            .andWhere("r.status IN (:...statuses)", { statuses: ['initiated', 'processing', 'completed'] })
+            .select("SUM(r.amount)", "_sum_amount")
+            .getRawOne();
 
-        const totalRefunded = parseFloat(refunded._sum.amount || 0);
+        const totalRefunded = parseFloat(refundedRaw?._sum_amount || 0);
         if (totalRefunded + refundAmount > parseFloat(txn.amount)) {
             return res.status(400).json(
                 error('REFUND_EXCEEDED', 'Refund amount exceeds remaining refundable amount')
@@ -73,16 +73,15 @@ exports.initiateRefund = async (req, res, next) => {
         }
 
         const refundId = uuidv4();
-        const refund = await prisma.refunds.create({
-            data: {
-                refund_id: refundId,
-                transaction_id: txn.id,
-                amount: refundAmount,
-                currency: txn.currency,
-                reason: reason || null,
-                initiated_by: req.user.id,
-                initiated_by_type: req.user.type || 'customer'
-            }
+        const refund = await refundRepo.save({
+            refund_id: refundId,
+            transaction_id: txn.id,
+            amount: refundAmount,
+            currency: txn.currency,
+            reason: reason || null,
+            initiated_by: req.user.id,
+            initiated_by_type: req.user.type || 'customer',
+            status: 'initiated'
         });
 
         res.status(201).json(success('Refund initiated', {
@@ -102,21 +101,23 @@ exports.initiateRefund = async (req, res, next) => {
  */
 exports.getRefunds = async (req, res, next) => {
     try {
-        const txn = await prisma.transactions.findFirst({
+        const txnRepo = AppDataSource.getRepository(transactions);
+        const txn = await txnRepo.findOne({
             where: { txn_id: req.params.txnId },
-            select: { id: true }
+            select: ['id']
         });
 
         if (!txn) {
             return res.status(404).json(error('NOT_FOUND', 'Transaction not found'));
         }
 
-        const refunds = await prisma.refunds.findMany({
+        const refundRepo = AppDataSource.getRepository(refunds);
+        const refundsList = await refundRepo.find({
             where: { transaction_id: txn.id },
-            orderBy: { created_at: 'desc' }
+            order: { created_at: 'DESC' }
         });
 
-        res.json(success('Refunds retrieved', refunds));
+        res.json(success('Refunds retrieved', refundsList));
     } catch (err) {
         next(err);
     }

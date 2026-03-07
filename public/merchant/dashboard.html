@@ -119,10 +119,11 @@
                 <div class="data-card mb-4 p-4 border-0 shadow-sm" style="border-radius: 12px; background: #fff;">
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h5 class="fw-semibold m-0" style="color: #1e293b;">Payments Overview</h5>
-                        <select class="form-select form-select-sm w-auto shadow-none"
+                        <select id="chartRangeSelect" class="form-select form-select-sm w-auto shadow-none"
+                            onchange="loadDashboard()"
                             style="border-color: #e2e8f0; color: #1e293b; font-size: 0.8rem; border-radius: 6px; padding-top: 0.35rem; padding-bottom: 0.35rem;">
-                            <option>Today</option>
-                            <option>Last 30 days</option>
+                            <option value="7">Last 7 days</option>
+                            <option value="30">Last 30 days</option>
                         </select>
                     </div>
                     <div class="chart-container" style="height: 280px;">
@@ -197,8 +198,11 @@
     <script>
         if (!requireAuth()) throw 'redirect';
 
+        let chartInstance = null;
+
         async function loadDashboard() {
-            const { ok, data } = await api('GET', '/platform/dashboard');
+            const range = document.getElementById('chartRangeSelect')?.value || 7;
+            const { ok, data } = await api('GET', `/platform/dashboard?range=${range}`);
             if (!ok) return;
 
             const s = data.data.stats;
@@ -241,30 +245,37 @@
         }
 
         function initChart(chartData) {
-            const labels = chartData?.labels || ['May 09', 'May 10', 'May 11', 'May 12', 'May 13', 'May 14', 'May 15'];
-            const todayStat = chartData?.this_week || [12, 19, 3, 5, 42, 18, 11];
-            const yesterdayStat = chartData?.last_week || [8, 12, 8, 15, 23, 28, 18];
+            const range = parseInt(document.getElementById('chartRangeSelect')?.value || 7);
+            const isMonthView = range === 30;
+
+            const labels = chartData?.labels || [];
+            const thisPeriodStat = chartData?.this_period || [];
+            const lastPeriodStat = chartData?.last_period || [];
+
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
 
             const ctx = document.getElementById('paymentsChart').getContext('2d');
-            new Chart(ctx, {
+            chartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Today',
-                        data: todayStat,
+                        label: isMonthView ? 'This 30 Days' : 'This 7 Days',
+                        data: thisPeriodStat,
                         borderColor: '#528ff0',
                         backgroundColor: 'rgba(82, 143, 240, 0.1)',
                         borderWidth: 3,
                         fill: true,
                         tension: 0.4,
-                        pointRadius: 4,
+                        pointRadius: isMonthView ? 0 : 4,
                         pointBackgroundColor: '#fff',
                         pointBorderColor: '#528ff0',
                         pointBorderWidth: 2
                     }, {
-                        label: 'Yesterday',
-                        data: yesterdayStat,
+                        label: isMonthView ? 'Previous 30 Days' : 'Previous 7 Days',
+                        data: lastPeriodStat,
                         borderColor: '#cbd5e1',
                         borderDash: [5, 5],
                         borderWidth: 2,
@@ -287,7 +298,12 @@
                         x: {
                             border: { display: false },
                             grid: { display: false },
-                            ticks: { padding: 8, font: { size: 11 }, color: '#64748b' }
+                            ticks: {
+                                padding: 8,
+                                font: { size: 11 },
+                                color: '#64748b',
+                                maxTicksLimit: isMonthView ? 10 : 7 // Don't crowd x-axis on 30 day view
+                            }
                         }
                     }
                 }

@@ -1,6 +1,6 @@
 # Payment Gateway Platform — Database Schema Design
 
-This project uses **SQLite** for data storage, managed through the **Prisma ORM**. The schema is designed for high consistency and auditability, following 3NF normalization principles where appropriate.
+This project uses **Oracle Database** for data storage, managed through **TypeORM**. The schema is designed for high consistency, auditability, and horizontal scalability, following 3NF normalization principles.
 
 ---
 
@@ -36,7 +36,7 @@ erDiagram
         Int id PK
         Int customer_id FK
         String wallet_id
-        Float balance
+        Decimal balance
         String currency
         String status
     }
@@ -46,8 +46,9 @@ erDiagram
         Int customer_id FK
         String card_number_hash
         String card_last_four
-        Float credit_limit
-        Float used_credit
+        String card_brand
+        Decimal credit_limit
+        Decimal used_credit
         String status
     }
 
@@ -64,7 +65,9 @@ erDiagram
         Int id PK
         String session_id
         Int merchant_app_id FK
-        Float amount
+        Int customer_id FK
+        Decimal amount
+        String currency
         String status
         DateTime expires_at
     }
@@ -74,9 +77,11 @@ erDiagram
         String txn_id
         Int customer_id FK
         Int merchant_id FK
-        Float amount
+        Decimal amount
+        String currency
         String status
         String mode
+        DateTime verified_at
     }
 
     verification_codes {
@@ -89,8 +94,9 @@ erDiagram
 
     payment_attempts {
         Int id PK
-        Int session_id FK
         Int customer_id FK
+        Int payment_method_id FK
+        Decimal amount
         String status
         Int attempt_sequence
     }
@@ -100,12 +106,12 @@ erDiagram
     customers ||--o{ credit_cards : "owns"
     customers ||--o{ payment_methods : "registers"
     customers ||--o{ transactions : "initiates"
-    customers ||--o{ payment_sessions : "pays via"
-    customers ||--o{ payment_attempts : "tries"
+    customers ||--o{ payment_sessions : "associates"
+    customers ||--o{ payment_attempts : "performs"
 
     merchants ||--o{ transactions : "receives"
     payment_sessions ||--o| transactions : "results in"
-    payment_sessions ||--o{ payment_attempts : "tracked by"
+    payment_methods ||--o{ transactions : "used by"
 ```
 
 ---
@@ -216,144 +222,19 @@ The full definition of our database structure is maintained in [prisma/schema.pr
 | `payment_attempts` | Detailed tracking of every attempt made during a "Smart Routing" cycle. |
 | `risk_scores` | Dynamic assessment of customer risk based on transaction history and alerts. |
 
-CREATE DATABASE IF NOT EXISTS payment_gateway
-    CHARACTER SET utf8mb4
-    COLLATE utf8mb4_unicode_ci;
-
-USE payment_gateway;
-
--- ============================================================
--- 1. CUSTOMERS
--- ============================================================
-CREATE TABLE customers (
-    id              INT AUTO_INCREMENT PRIMARY KEY,
-    uuid            VARCHAR(36)     NOT NULL,
-    first_name      VARCHAR(100)    NOT NULL,
-    last_name       VARCHAR(100)    NOT NULL,
-    email           VARCHAR(255)    NOT NULL,
-    phone           VARCHAR(20)     DEFAULT NULL,
-    password_hash   VARCHAR(255)    NOT NULL,
-    status          ENUM('active', 'suspended', 'deleted')
-                        NOT NULL DEFAULT 'active',
-    created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP
-                        ON UPDATE CURRENT_TIMESTAMP,
-
-    UNIQUE KEY  uq_customers_uuid   (uuid),
-    UNIQUE KEY  uq_customers_email  (email),
-    INDEX       idx_customers_phone (phone),
-    INDEX       idx_customers_status(status)
-) ENGINE=InnoDB;
-
--- ============================================================
--- 2. MERCHANTS
--- ============================================================
-CREATE TABLE merchants (
-    id              INT AUTO_INCREMENT PRIMARY KEY,
-    uuid            VARCHAR(36)     NOT NULL,
-    business_name   VARCHAR(255)    NOT NULL,
-    business_email  VARCHAR(255)    NOT NULL,
-    phone           VARCHAR(20)     DEFAULT NULL,
-    password_hash   VARCHAR(255)    NOT NULL,
-    business_type   VARCHAR(100)    DEFAULT NULL,
-    status          ENUM('active', 'suspended', 'deleted')
-                        NOT NULL DEFAULT 'active',
-    created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP
-                        ON UPDATE CURRENT_TIMESTAMP,
-
-    UNIQUE KEY  uq_merchants_uuid           (uuid),
-    UNIQUE KEY  uq_merchants_business_email (business_email),
-    INDEX       idx_merchants_status        (status)
-) ENGINE=InnoDB;
-
--- ============================================================
--- 3. ADMINS
--- ============================================================
-CREATE TABLE admins (
-    id              INT AUTO_INCREMENT PRIMARY KEY,
-    uuid            VARCHAR(36)     NOT NULL,
-    name            VARCHAR(200)    NOT NULL,
-    email           VARCHAR(255)    NOT NULL,
-    password_hash   VARCHAR(255)    NOT NULL,
-    role            ENUM('super_admin', 'admin', 'support')
-                        NOT NULL DEFAULT 'admin',
-    created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP
-                        ON UPDATE CURRENT_TIMESTAMP,
-
-    UNIQUE KEY  uq_admins_uuid  (uuid),
-    UNIQUE KEY  uq_admins_email (email),
-    INDEX       idx_admins_role (role)
-) ENGINE=InnoDB;
-
--- ============================================================
--- 4. WALLETS
--- ============================================================
-CREATE TABLE wallets (
-    id              INT AUTO_INCREMENT PRIMARY KEY,
-    customer_id     INT             NOT NULL,
-    wallet_id       VARCHAR(36)     NOT NULL,
-    balance         DECIMAL(15, 2)  NOT NULL DEFAULT 0.00,
-    currency        VARCHAR(3)      NOT NULL DEFAULT 'INR',
-    status          ENUM('active', 'frozen', 'closed')
-                        NOT NULL DEFAULT 'active',
-    created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP
-                        ON UPDATE CURRENT_TIMESTAMP,
-
-    UNIQUE KEY  uq_wallets_wallet_id    (wallet_id),
-    INDEX       idx_wallets_customer    (customer_id),
-    INDEX       idx_wallets_status      (status),
-
-    CONSTRAINT  fk_wallets_customer
-        FOREIGN KEY (customer_id) REFERENCES customers (id)
-        ON UPDATE CASCADE ON DELETE RESTRICT
-) ENGINE=InnoDB;
-
--- ============================================================
--- 5. CREDIT CARDS
--- ============================================================
-CREATE TABLE credit_cards (
-    id                  INT AUTO_INCREMENT PRIMARY KEY,
-    customer_id         INT             NOT NULL,
-    card_number_hash    VARCHAR(255)    NOT NULL,
-    card_last_four      CHAR(4)         NOT NULL,
-    card_brand          ENUM('visa', 'mastercard', 'amex', 'rupay', 'discover')
-                            NOT NULL,
-    cardholder_name     VARCHAR(255)    NOT NULL,
-    expiry_month        CHAR(2)         NOT NULL,
-    expiry_year         CHAR(4)         NOT NULL,
-    credit_limit        DECIMAL(15, 2)  NOT NULL DEFAULT 0.00,
-    used_credit         DECIMAL(15, 2)  NOT NULL DEFAULT 0.00,
-    status              ENUM('active', 'expired', 'blocked')
-                            NOT NULL DEFAULT 'active',
-    created_at          TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at          TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP
-                            ON UPDATE CURRENT_TIMESTAMP,
-
-    INDEX       idx_cc_customer         (customer_id),
-    INDEX       idx_cc_last_four        (card_last_four),
-    INDEX       idx_cc_status           (status),
-
-    CONSTRAINT  fk_cc_customer
-        FOREIGN KEY (customer_id) REFERENCES customers (id)
-### Database Engine: SQLite
-SQLite provides a self-contained, serverless database engine perfect for local development and simulation. While it doesn't support all complex MySQL features (like native ENUMs or JSON functions), we use **Prisma** to simulate these through string validation and application-level logic.
-
 ---
 
 ## 5. Index Strategy Summary
 
-Prisma automatically generates indexes for `@@index` and `@@unique` directives in `schema.prisma`.
+TypeORM automatically generates indexes for `unique: true` and indexed columns based on Oracle DB best practices.
 
 | Table | Index | Purpose |
 |---|---|---|
-| `customers` | `uq_customers_email` | Fast login lookups and 2FA email verification. |
-| `transactions` | `idx_txn_created` | Rapid retrieval for dashboard "Spending Trends" (last 7 days). |
-| `transactions` | `idx_txn_mode` | Separation of Platform vs. Simulator history for analytics. |
-| `verification_codes` | `idx_vc_email_code` | Performance index for OTP validation flows. |
-| `payment_sessions` | `idx_ps_expires` | Optimized cleanup of expired payment sessions. |
+| `customers` | `UQ_CUSTOMERS_EMAIL` | Fast login lookups and 2FA email verification. |
+| `transactions` | `IDX_TXN_CREATED` | Rapid retrieval for dashboard "Spending Trends". |
+| `transactions` | `IDX_TXN_MODE` | Separation of Platform vs. Simulator history for analytics. |
+| `verification_codes` | `IDX_VC_EMAIL_CODE` | Performance index for OTP validation flows. |
+| `payment_sessions` | `IDX_PS_EXPIRES` | Optimized cleanup of expired payment sessions. |
 
 ---
 
@@ -361,8 +242,14 @@ Prisma automatically generates indexes for `@@index` and `@@unique` directives i
 
 | Decision | Rationale |
 |---|---|
-| **Separation of Entities** | Role-specific data (Customer vs Merchant) diverges significantly; keeps the schema clean and performant. |
-| **`payment_methods` abstraction** | Provides a unified interface for polymorphic instruments (Wallets, Cards, Bank Accounts). |
-| **Bcrypt Hashing** | Industry-standard security for passwords and PINs; raw secrets are never stored. |
-| **Transactional OTPs** | OTP generation is handled outside balance transactions to ensure persistence even on payment failure. |
-| **Smart Routing Tracking** | The `payment_attempts` table allows auditing of the autonomous retry logic during payment processing. |
+| **Polymorphic Instruments** | `payment_methods` provides a unified interface for Wallets, Cards, and Bank Accounts. |
+| **Atomic Transactions** | Core payment logic uses Oracle-level transactions (via `queryRunner`) to ensure balance integrity. |
+| **Bcrypt Hashing** | Secure one-way hashing for sensitive credentials (Passwords, PINs). |
+| **MFA Integration** | Transactional OTPs are decoupled from balance updates to ensure delivery even on processing errors. |
+| **Smart Routing** | `payment_attempts` enables deep auditing of the autonomous retry engine. |
+
+### Database Engine: Oracle DB
+Oracle DB provides enterprise-grade reliability and performance. We leverage **TypeORM** to manage the schema and migrations seamlessly in a Node.js environment.
+
+---
+© 2026 PaySim Platform. Built for Advanced Fintech Simulation.

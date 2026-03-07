@@ -116,22 +116,27 @@ exports.getInstruments = async (req, res, next) => {
  */
 exports.getReceivers = async (req, res, next) => {
     try {
-        const prisma = require('../config/prisma');
+        const AppDataSource = require('../config/database');
+        const { merchants, customers } = require('../src/entities');
         const customerId = req.user.id;
 
-        const merchants = await prisma.merchants.findMany({
+        const merchantRepo = AppDataSource.getRepository(merchants);
+        const activeMerchants = await merchantRepo.find({
             where: { status: 'active' },
-            select: { id: true, business_name: true, uuid: true }
+            select: ['id', 'business_name', 'uuid']
         });
 
-        const customers = await prisma.customers.findMany({
-            where: { status: 'active', NOT: { id: customerId } },
-            select: { id: true, first_name: true, last_name: true, uuid: true }
-        });
+        const customerRepo = AppDataSource.getRepository(customers);
+        const queryBuilder = customerRepo.createQueryBuilder("c");
+        const activeCustomers = await queryBuilder
+            .where("c.status = :status", { status: 'active' })
+            .andWhere("c.id != :customerId", { customerId })
+            .select(['c.id', 'c.first_name', 'c.last_name', 'c.uuid'])
+            .getMany();
 
         res.json(success('Receivers retrieved', {
-            merchants: merchants.map(m => ({ id: m.id, name: m.business_name, type: 'merchant' })),
-            customers: customers.map(c => ({ id: c.id, name: `${c.first_name} ${c.last_name}`, type: 'customer' }))
+            merchants: activeMerchants.map(m => ({ id: m.id, name: m.business_name, type: 'merchant' })),
+            customers: activeCustomers.map(c => ({ id: c.id, name: `${c.first_name} ${c.last_name}`, type: 'customer' }))
         }));
     } catch (err) {
         next(err);

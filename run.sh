@@ -13,7 +13,7 @@ echo "----------------------------------------------------"
 # 2. Start Application
 # ==========================================
 
-echo "🚀 Launching PaySim (SQLite Mode)..."
+echo "🚀 Launching PaySim (OracleDB/TypeORM Mode)..."
 
 # 1. Install dependencies if needed
 if [ ! -d "node_modules" ]; then
@@ -21,12 +21,10 @@ if [ ! -d "node_modules" ]; then
     npm install
 fi
 
-# 2. Apply schema and sync Prisma client
-echo "⚙️  Syncing schema with Prisma..."
-npx prisma generate
-npx prisma db push --skip-generate
-echo "✅ Database ready"
+# 2. Database Sync Note
+echo "⚙️  TypeORM will synchronize the schema automatically on startup (synchronize: true)..."
+echo "✅ Configuration ready"
 
-# 5. Start the application
+# 3. Start the application
 echo "🌐 Starting Node.js server..."
 npm run dev

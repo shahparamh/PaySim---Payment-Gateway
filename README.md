@@ -1,18 +1,18 @@
 # PaySim — Payment Gateway Platform
 
-A complete payment gateway simulator and merchant platform built with Node.js, Express, and **SQLite**.
+A complete payment gateway simulator and merchant platform built with Node.js, Express, and **Oracle Database**.
 
 ## 🏗️ Project Structure
 
 ```text
-├── config/             # Configuration (Prisma singleton, etc.)
+├── config/             # Configuration (Database connection, etc.)
 ├── controllers/        # Express route controllers & request handling
 ├── middleware/         # Custom auth, logging, and error middlewares
-├── prisma/             # Schema definition and SQLite database (dev.db)
 ├── public/             # Frontend assets (HTML, CSS, JS)
 ├── routes/             # API route definitions
-├── scripts/            # Database seeding and fintech verification scripts
+├── scripts/            # Admin and utility scripts
 ├── services/           # CORE: Business logic, Escrow, Email (Brevo), Transactions
+├── src/                # TypeORM entities and Core logic
 ├── tests/              # Standalone verification and 2FA flow tests
 ├── utils/              # Shared helper functions (validations, responses)
 ├── .env                # Structured environment variables
@@ -22,7 +22,7 @@ A complete payment gateway simulator and merchant platform built with Node.js, E
 
 ## 🚀 Quick Start
 
-Launch the entire system with zero external dependencies:
+Launch the entire system with zero external dependencies (assuming Oracle DB is running):
 
 ```bash
 ./run.sh
@@ -30,9 +30,8 @@ Launch the entire system with zero external dependencies:
 
 This script automates:
 1. Environment loading.
-2. Prisma schema synchronization (`prisma/dev.db`).
-3. Dependency installation.
-4. Starting the development server with live reload.
+2. Dependency installation.
+3. Starting the development server with live reload.
 
 **Dashboard URL:** http://localhost:3000
 

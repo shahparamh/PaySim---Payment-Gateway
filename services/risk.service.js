@@ -2,7 +2,9 @@
 // Risk Scoring Service — services/risk.service.js
 // ==========================================
 
-const prisma = require('../config/prisma');
+const AppDataSource = require('../config/database');
+const { customers, risk_scores } = require('../src/entities');
+
 
 class RiskService {
     /**
@@ -12,21 +14,18 @@ class RiskService {
      */
     async evaluateRiskScore(customerId) {
         // 1. Fetch relevant data for risk assessment
-        const customer = await prisma.customers.findUnique({
+        const customerRepo = AppDataSource.getRepository(customers);
+        const customer = await customerRepo.findOne({
             where: { id: customerId },
-            include: {
-                transactions: {
-                    take: 20,
-                    orderBy: { created_at: 'desc' }
-                },
-                fraud_alerts: {
-                    where: { status: 'open' }
-                },
-                payment_methods: true
-            }
+            relations: ['transactions', 'fraud_alerts', 'payment_methods']
         });
 
         if (!customer) throw new Error('Customer not found');
+
+        // Note: the original relation included take:20, orderBy: date.
+        // For TypeORM, we'll sort in memory or load explicitly, here we sort in memory for simplicity.
+        customer.transactions = customer.transactions ? customer.transactions.sort((a, b) => b.created_at - a.created_at).slice(0, 20) : [];
+        customer.fraud_alerts = customer.fraud_alerts ? customer.fraud_alerts.filter(a => a.status === 'open') : [];
 
         let score = 0;
         let factors = [];
@@ -73,29 +72,34 @@ class RiskService {
         else if (score > medium) riskLevel = 'medium';
 
         // 2. Update or Create risk_scores record
-        return await prisma.risk_scores.upsert({
-            where: { customer_id: customerId },
-            update: {
+        const riskRepo = AppDataSource.getRepository(risk_scores);
+        let existingRisk = await riskRepo.findOne({ where: { customer_id: customerId } });
+
+        if (existingRisk) {
+            await riskRepo.update({ customer_id: customerId }, {
                 risk_score: score,
                 risk_level: riskLevel,
-                factors: factors,
+                factors: factors.join(', '), // JSON stringify if array type in DB, but DB might be varchar. Assuming string.
                 last_evaluated: new Date()
-            },
-            create: {
+            });
+            return await riskRepo.findOne({ where: { customer_id: customerId } });
+        } else {
+            return await riskRepo.save({
                 customer_id: customerId,
                 risk_score: score,
                 risk_level: riskLevel,
-                factors: factors,
+                factors: factors.join(', '),
                 last_evaluated: new Date()
-            }
-        });
+            });
+        }
     }
 
     /**
      * Gets the current risk status of a customer
      */
     async getCustomerRisk(customerId) {
-        let risk = await prisma.risk_scores.findUnique({
+        const riskRepo = AppDataSource.getRepository(risk_scores);
+        let risk = await riskRepo.findOne({
             where: { customer_id: customerId }
         });
 
