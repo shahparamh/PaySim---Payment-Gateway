@@ -87,7 +87,10 @@
                                     </div>
                                     <input type="hidden" id="selectedMethodId">
                                     <div class="mb-3" id="selectedMethodInfo" style="display: none;">
-                                        <div class="alert alert-light border d-flex align-items-center gap-2">
+                                        <label class="form-label small text-muted">Selected Method</label>
+                                        <div id="methodPreview"></div>
+                                        <div class="alert alert-light border d-flex align-items-center gap-2"
+                                            id="simpleMethodInfo">
                                             <i class="bi" id="selectedIcon"></i>
                                             <span id="selectedLabel"></span>
                                         </div>
@@ -169,18 +172,34 @@
             }
 
             methods = data.data;
-            container.innerHTML = methods.map(m => `
-            <div class="method-card mb-2 d-flex align-items-center gap-3" onclick="selectMethod(${m.id}, '${m.method_type}', this)">
-                <div class="method-icon icon-primary" style="margin-bottom: 0;">
-                    <i class="bi ${methodIcon(m.method_type)}"></i>
-                </div>
-                <div class="flex-grow-1">
-                    <div class="fw-600">${m.method_type.replace(/_/g, ' ').toUpperCase()}</div>
-                    <small class="text-muted">ID: ${m.instrument_id} ${m.is_default ? '— Default' : ''}</small>
-                </div>
-                ${m.is_default ? '<span class="badge bg-primary">Default</span>' : ''}
-            </div>
-        `).join('');
+            container.innerHTML = methods.map(m => {
+                const detail = m.details || {};
+                let title = m.method_type.replace(/_/g, ' ').toUpperCase();
+                let sub = `ID: ${m.instrument_id}`;
+
+                if (m.method_type === 'credit_card') {
+                    title = `${detail.card_brand?.toUpperCase() || 'CARD'} **** ${detail.card_last_four}`;
+                    sub = detail.cardholder_name || 'Credit Card';
+                } else if (m.method_type === 'bank_account' || m.method_type === 'net_banking') {
+                    title = detail.bank_name || 'Bank Account';
+                    sub = `**** ${detail.account_last_four} · ${detail.account_type?.toUpperCase() || ''}`;
+                } else if (m.method_type === 'wallet') {
+                    title = `${detail.currency} Wallet`;
+                    sub = `Balance: ${formatCurrency(detail.balance)}`;
+                }
+
+                return `
+                <div class="method-card mb-2 d-flex align-items-center gap-3 animate-fade-in" onclick="selectMethod(${m.id}, '${m.method_type}', this)">
+                    <div class="method-icon ${m.method_type === 'credit_card' ? 'icon-info' : m.method_type === 'wallet' ? 'icon-primary' : 'icon-success'}" style="margin-bottom: 0;">
+                        <i class="bi ${methodIcon(m.method_type)}"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="fw-700">${title}</div>
+                        <small class="text-muted">${sub} ${m.is_default ? '— <span class="text-primary fw-600">Default</span>' : ''}</small>
+                    </div>
+                    <i class="bi bi-chevron-right text-muted opacity-50"></i>
+                </div>`;
+            }).join('');
         }
 
         async function loadReceivers() {
@@ -216,9 +235,60 @@
             document.querySelectorAll('.method-card').forEach(c => c.classList.remove('selected'));
             el.classList.add('selected');
             document.getElementById('selectedMethodId').value = id;
+
+            const method = methods.find(m => m.id === id);
+            const detail = method.details || {};
+            const preview = document.getElementById('methodPreview');
+            const simple = document.getElementById('simpleMethodInfo');
+
             document.getElementById('selectedMethodInfo').style.display = '';
-            document.getElementById('selectedIcon').className = 'bi ' + methodIcon(type);
-            document.getElementById('selectedLabel').textContent = type.replace(/_/g, ' ').toUpperCase();
+
+            if (type === 'credit_card') {
+                simple.style.display = 'none';
+                preview.style.display = 'block';
+                preview.innerHTML = `
+                    <div class="payment-card text-white mb-3 animate-fade-in" style="background: linear-gradient(135deg, ${detail.card_brand === 'visa' ? '#1e40af, #3b82f6' : detail.card_brand === 'mastercard' ? '#475569, #0f172a' : '#312e81, #1e1b4b'}); min-height: 160px; padding: 1.25rem; border: none;">
+                        <div class="card-brand-badge" style="top: 1rem; right: 1.25rem;">${detail.card_brand || 'card'}</div>
+                        <div class="card-chip" style="width: 36px; height: 26px;"></div>
+                        <div class="card-number-display mb-2 mt-3" style="font-size: 1.25rem; letter-spacing: 2px; margin: 1rem 0;">
+                            •••• •••• •••• ${detail.card_last_four}
+                        </div>
+                        <div class="d-flex justify-content-between align-items-end mt-auto">
+                            <div class="info-item">
+                                <span class="label" style="font-size: 0.5rem; margin-bottom: 0;">Cardholder</span>
+                                <span class="value" style="font-size: 0.75rem;">${detail.cardholder_name}</span>
+                            </div>
+                            <div class="info-item text-end">
+                                <span class="label" style="font-size: 0.5rem; margin-bottom: 0;">Expires</span>
+                                <span class="value" style="font-size: 0.75rem;">${detail.expiry_month}/${detail.expiry_year}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (type === 'bank_account' || type === 'net_banking') {
+                simple.style.display = 'none';
+                preview.style.display = 'block';
+                preview.innerHTML = `
+                    <div class="payment-card text-white mb-3 animate-fade-in" style="background: linear-gradient(135deg, #0f172a, #1e293b); min-height: 120px; padding: 1.25rem; border: none;">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="stat-icon icon-success" style="background: rgba(16, 185, 129, 0.2); color: #10b981; width: 32px; height: 32px; font-size: 1rem; margin-bottom: 0;"><i class="bi bi-bank"></i></div>
+                            <span class="badge bg-success opacity-75" style="font-size: 0.6rem;">Active</span>
+                        </div>
+                        <div class="fw-700 mt-2 text-white" style="font-size: 1.1rem;">${detail.bank_name}</div>
+                        <div class="opacity-75 small text-white-50">•••• ${detail.account_last_four} · ${detail.account_type?.toUpperCase()}</div>
+                    </div>
+                `;
+            }
+            else {
+                preview.style.display = 'none';
+                simple.style.display = 'flex';
+                document.getElementById('selectedIcon').className = 'bi ' + methodIcon(type);
+                document.getElementById('selectedLabel').textContent = type.replace(/_/g, ' ').toUpperCase();
+                if (type === 'wallet') {
+                    document.getElementById('selectedLabel').textContent += ` (${formatCurrency(detail.balance)})`;
+                }
+            }
+
             document.getElementById('payBtn').disabled = false;
         }
 

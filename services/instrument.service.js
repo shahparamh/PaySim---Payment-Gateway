@@ -8,6 +8,7 @@ const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
 const AppDataSource = require('../config/database');
 const { wallets, payment_methods, credit_cards, bank_accounts, transactions } = require('../src/entities');
+const { encrypt, decrypt } = require('../utils/crypto');
 
 // ── Wallets ─────────────────────────────────────────────
 
@@ -63,23 +64,25 @@ async function addCreditCard(customerId, data) {
     const cardHash = crypto.createHash('sha256').update(cleanCardNumber).digest('hex');
     const lastFour = cleanCardNumber.slice(-4);
 
-    // Prevent duplicate active cards
+    // Prevent duplicate active cards (globally)
     const ccRepo = AppDataSource.getRepository(credit_cards);
     const existingCard = await ccRepo.findOne({
         where: {
-            customer_id: customerId,
             card_number_hash: cardHash,
             status: 'active'
         }
     });
 
     if (existingCard) {
-        throw new Error('This credit card is already linked to your account');
+        throw Object.assign(new Error('This credit card is already linked to an account'), { statusCode: 400 });
     }
+
+    const encryptedCard = encrypt(cleanCardNumber);
 
     const card = await ccRepo.save({
         customer_id: customerId,
         card_number_hash: cardHash,
+        card_number_encrypted: encryptedCard,
         card_last_four: lastFour,
         card_brand: data.card_brand,
         cardholder_name: data.cardholder_name,
@@ -101,8 +104,27 @@ async function addCreditCard(customerId, data) {
 async function getCreditCards(customerId) {
     const ccRepo = AppDataSource.getRepository(credit_cards);
     return await ccRepo.find({
-        where: { customer_id: customerId, status: 'active' }
+        where: { customer_id: customerId, status: 'active' },
+        select: ['id', 'customer_id', 'card_last_four', 'card_brand', 'cardholder_name', 'expiry_month', 'expiry_year', 'credit_limit', 'used_credit', 'status', 'created_at']
     });
+}
+
+async function getFullCardNumber(cardId, customerId) {
+    const ccRepo = AppDataSource.getRepository(credit_cards);
+    const card = await ccRepo.findOne({
+        where: { id: cardId, customer_id: customerId, status: 'active' }
+    });
+
+    if (!card) {
+        throw Object.assign(new Error('Credit card not found'), { statusCode: 404 });
+    }
+
+    if (!card.card_number_encrypted) {
+        throw Object.assign(new Error('Full card number not available for this card'), { statusCode: 400 });
+    }
+
+    const fullNumber = decrypt(card.card_number_encrypted);
+    return { card_number: fullNumber };
 }
 
 async function removeCreditCard(cardId, customerId) {
@@ -160,9 +182,25 @@ async function removeBankAccount(accountId, customerId) {
 
 async function getPaymentMethods(customerId) {
     const pmRepo = AppDataSource.getRepository(payment_methods);
-    return await pmRepo.find({
+    const methods = await pmRepo.find({
         where: { customer_id: customerId, status: 'active' }
     });
+
+    // Enrich with instrument details
+    return await Promise.all(methods.map(async (m) => {
+        let details = null;
+        if (m.method_type === 'wallet') {
+            details = await AppDataSource.getRepository(wallets).findOneBy({ id: m.instrument_id });
+        } else if (m.method_type === 'credit_card') {
+            details = await AppDataSource.getRepository(credit_cards).findOne({
+                where: { id: m.instrument_id },
+                select: ['id', 'card_last_four', 'card_brand', 'cardholder_name', 'expiry_month', 'expiry_year']
+            });
+        } else if (m.method_type === 'bank_account' || m.method_type === 'net_banking') {
+            details = await AppDataSource.getRepository(bank_accounts).findOneBy({ id: m.instrument_id });
+        }
+        return { ...m, details };
+    }));
 }
 
 async function setDefaultMethod(methodId, customerId) {
@@ -318,7 +356,7 @@ async function payCreditCardBill(customerId, cardId, sourceMethodId, amount) {
 
 module.exports = {
     createWallet, getWallets, topUpWallet,
-    addCreditCard, getCreditCards, removeCreditCard,
+    addCreditCard, getCreditCards, removeCreditCard, getFullCardNumber,
     addBankAccount, getBankAccounts, removeBankAccount,
     addNetBanking,
     getPaymentMethods, setDefaultMethod, getCustomerInstruments,

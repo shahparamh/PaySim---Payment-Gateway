@@ -269,6 +269,10 @@ exports.credit_cards = new EntitySchema({
             "type": "varchar",
             "nullable": false
         },
+        "card_number_encrypted": {
+            "type": "varchar",
+            "nullable": true
+        },
         "card_last_four": {
             "type": "varchar",
             "nullable": false

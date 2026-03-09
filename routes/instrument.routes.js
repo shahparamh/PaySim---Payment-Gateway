@@ -16,6 +16,7 @@ router.put('/wallets/:id/topup', instrumentController.topUpWallet);
 // ── Credit Cards ──
 router.post('/cards', instrumentController.addCreditCard);
 router.get('/cards', instrumentController.getCreditCards);
+router.get('/cards/:id/details', instrumentController.getCardDetails);
 router.delete('/cards/:id', instrumentController.removeCreditCard);
 router.post('/cards/:id/pay-bill', instrumentController.payCreditCardBill);
 

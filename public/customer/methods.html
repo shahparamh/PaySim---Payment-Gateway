@@ -134,14 +134,17 @@
             document.getElementById('walletList').innerHTML = (wallets.ok && wallets.data.data.length > 0)
                 ? wallets.data.data.map(w => `
                 <div class="col-md-4">
-                    <div class="stat-card glass-panel hover-lift">
+                    <div class="payment-card text-white animate-fade-in" style="background: linear-gradient(135deg, #4f46e5, #7c3aed); border: none;">
                         <div class="d-flex justify-content-between align-items-start">
-                            <div class="stat-icon icon-primary"><i class="bi bi-wallet2"></i></div>
-                            ${statusBadge(w.status)}
+                            <div class="stat-icon icon-primary" style="background: rgba(255, 255, 255, 0.2); color: #ffffff;"><i class="bi bi-wallet2"></i></div>
+                            <span class="badge bg-primary opacity-75">Active</span>
                         </div>
-                        <div class="stat-value mt-2">${formatCurrency(w.balance)}</div>
-                        <div class="stat-label">${w.currency} Wallet</div>
-                        <small class="text-muted">ID: ${w.wallet_id?.substring(0, 8)}...</small>
+                        <div class="stat-value mt-2" style="font-size: 1.5rem;">${formatCurrency(w.balance)}</div>
+                        <div class="small fw-600 text-uppercase opacity-75">${w.currency} Wallet</div>
+                        <div class="mt-auto d-flex justify-content-between align-items-center">
+                            <small class="opacity-75">ID: ${w.wallet_id?.substring(0, 8)}...</small>
+                            <a href="pay.html" class="btn btn-sm btn-link text-white p-0"><i class="bi bi-plus-circle me-1"></i> Top Up</a>
+                        </div>
                     </div>
                 </div>
             `).join('')
@@ -151,21 +154,41 @@
             document.getElementById('cardList').innerHTML = (cards.ok && cards.data.data.length > 0)
                 ? cards.data.data.map(c => `
                 <div class="col-md-4">
-                    <div class="stat-card glass-panel hover-lift">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div class="stat-icon icon-info"><i class="bi bi-credit-card"></i></div>
-                            <span class="badge bg-secondary">${c.card_brand}</span>
+                    <div class="payment-card text-white animate-fade-in" style="background: linear-gradient(135deg, ${c.card_brand === 'visa' ? '#1e40af, #3b82f6' : c.card_brand === 'mastercard' ? '#475569, #0f172a' : '#312e81, #1e1b4b'});">
+                        <div class="card-brand-badge">${c.card_brand}</div>
+                        <div class="card-chip"></div>
+                        
+                        <div class="card-number-display d-flex justify-content-between align-items-center">
+                            <span id="cardNumber-${c.id}">•••• •••• •••• ${c.card_last_four}</span>
+                            <button class="btn btn-link btn-sm p-0 text-white-50" onclick="toggleCardVisibility(${c.id}, '${c.card_last_four}')" id="toggleBtn-${c.id}">
+                                <i class="bi bi-eye"></i>
+                            </button>
                         </div>
-                        <div class="fw-700 fs-5 mt-2">•••• •••• •••• ${c.card_last_four}</div>
-                        <div class="mt-2 d-flex justify-content-between">
-                            <small>Limit: ${formatCurrency(c.credit_limit)}</small>
-                            <small>Used: ${formatCurrency(c.used_credit)}</small>
+
+                        <div class="card-info-grid">
+                            <div class="info-item">
+                                <span class="label">Limit</span>
+                                <span class="value">${formatCurrency(c.credit_limit)}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Used</span>
+                                <span class="value">${formatCurrency(c.used_credit)}</span>
+                            </div>
+                            <div class="info-item text-end">
+                                <span class="label">Expires</span>
+                                <span class="value">${c.expiry_month}/${c.expiry_year}</span>
+                            </div>
                         </div>
-                        <div class="small text-muted mt-1 mb-2">Expires: ${c.expiry_month}/${c.expiry_year}</div>
-                        ${c.used_credit > 0 ? `
-                        <button class="btn btn-sm btn-outline-primary w-100" onclick="showBillModal(${c.id}, ${c.used_credit})">
-                            <i class="bi bi-receipt me-1"></i> Pay Bill
-                        </button>` : ''}
+
+                        <div class="card-actions-row">
+                            ${c.used_credit > 0 ? `
+                            <button class="btn btn-sm btn-primary flex-grow-1" onclick="showBillModal(${c.id}, ${c.used_credit})">
+                                <i class="bi bi-receipt me-1"></i> Pay Bill
+                            </button>` : ''}
+                            <button class="btn btn-sm btn-outline-light opacity-50" onclick="confirmDeleteCard(${c.id})" title="Remove Card">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             `).join('')
@@ -175,15 +198,17 @@
             document.getElementById('bankList').innerHTML = (banks.ok && banks.data.data.length > 0)
                 ? banks.data.data.map(b => `
                 <div class="col-md-4">
-                    <div class="stat-card glass-panel hover-lift">
+                    <div class="payment-card text-white animate-fade-in" style="background: linear-gradient(135deg, #0f172a, #1e293b); min-height: 180px;">
                         <div class="d-flex justify-content-between align-items-start">
-                            <div class="stat-icon icon-success"><i class="bi bi-bank"></i></div>
+                            <div class="stat-icon icon-success" style="background: rgba(16, 185, 129, 0.2); color: #10b981;"><i class="bi bi-bank"></i></div>
                             ${statusBadge(b.status)}
                         </div>
-                        <div class="fw-600 mt-2">${b.bank_name}</div>
-                        <div class="text-muted small">•••• ${b.account_last_four} · ${b.account_type}</div>
-                        <div class="stat-value mt-1">${formatCurrency(b.balance)}</div>
-                        <small class="text-muted">IFSC: ${b.ifsc_code}</small>
+                        <div class="fw-700 mt-2 fs-5">${b.bank_name}</div>
+                        <div class="small opacity-75">•••• ${b.account_last_four} · ${b.account_type.toUpperCase()}</div>
+                        <div class="stat-value mt-2" style="font-size: 1.5rem;">${formatCurrency(b.balance)}</div>
+                        <div class="mt-auto d-flex justify-content-between">
+                            <small class="opacity-75">IFSC: ${b.ifsc_code}</small>
+                        </div>
                     </div>
                 </div>
             `).join('')
@@ -245,6 +270,44 @@
                 loadAll(); // Refresh data
             } else {
                 showToast(data.error?.message || 'Payment failed', 'danger');
+            }
+        }
+
+        async function toggleCardVisibility(cardId, lastFour) {
+            const numSpan = document.getElementById(`cardNumber-${cardId}`);
+            const btn = document.getElementById(`toggleBtn-${cardId}`);
+            const icon = btn.querySelector('i');
+
+            if (icon.classList.contains('bi-eye')) {
+                // Show
+                icon.classList.replace('bi-eye', 'bi-eye-slash');
+                numSpan.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+                const { ok, data } = await api('GET', `/instruments/cards/${cardId}/details`);
+                if (ok) {
+                    const raw = data.data.card_number;
+                    const formatted = raw.match(/.{1,4}/g).join(' ');
+                    numSpan.textContent = formatted;
+                } else {
+                    showToast('Failed to retrieve card number', 'danger');
+                    icon.classList.replace('bi-eye-slash', 'bi-eye');
+                    numSpan.textContent = `•••• •••• •••• ${lastFour}`;
+                }
+            } else {
+                // Hide
+                icon.classList.replace('bi-eye-slash', 'bi-eye');
+                numSpan.textContent = `•••• •••• •••• ${lastFour}`;
+            }
+        }
+
+        async function confirmDeleteCard(cardId) {
+            if (!confirm('Are you sure you want to remove this credit card?')) return;
+            const { ok } = await api('DELETE', `/instruments/cards/${cardId}`);
+            if (ok) {
+                showToast('Card removed successfully', 'success');
+                loadAll();
+            } else {
+                showToast('Failed to remove card', 'danger');
             }
         }
 

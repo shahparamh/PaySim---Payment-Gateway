@@ -522,3 +522,230 @@ a {
     box-shadow: 0 0 0 4px var(--primary-glow);
     transform: translateY(-2px);
 }
+/* ── Premium Payment Card Component ────────────────────── */
+.payment-card {
+    position: relative;
+    padding: 1.5rem;
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03));
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: var(--transition);
+}
+
+.payment-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.4), var(--shadow-glow);
+    border-color: var(--primary-light);
+}
+
+.card-chip {
+    width: 42px;
+    height: 32px;
+    background: linear-gradient(135deg, #eab308, #ca8a04);
+    border-radius: 6px;
+    position: relative;
+}
+
+.card-brand-badge {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    background: rgba(15, 23, 42, 0.8);
+    padding: 0.35rem 0.85rem;
+    border-radius: 9999px;
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #f1f5f9;
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.card-number-display {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+    margin: 1.5rem 0;
+    color: #f8fafc;
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+
+.card-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 1.5rem;
+    align-items: flex-end;
+}
+
+.info-item .label {
+    display: block;
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+    margin-bottom: 2px;
+    font-weight: 600;
+}
+
+.info-item .value {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #f1f5f9;
+}
+
+.card-actions-row {
+    margin-top: 1.5rem;
+    display: flex;
+    gap: 0.5rem;
+}
+
+[data-theme="light"] .payment-card {
+    background: linear-gradient(135deg, #ffffff, #f1f5f9);
+    border: 1px solid #e2e8f0;
+}
+
+[data-theme="light"] .card-number-display,
+[data-theme="light"] .info-item .value {
+    color: #0f172a;
+}
+
+/* ── Method Selection Cards ────────────────────────────── */
+.method-card {
+    cursor: pointer;
+    padding: 1.5rem;
+    border-radius: var(--radius);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    transition: var(--transition);
+    height: 100%;
+}
+
+.method-card:hover {
+    border-color: var(--primary);
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-md);
+}
+
+.method-card.selected {
+    border-color: var(--primary);
+    background: var(--primary-glow);
+    box-shadow: 0 0 0 2px var(--primary);
+}
+
+.method-card .method-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    margin-bottom: 0.75rem;
+}
+
+/* ── Refined Contrast for Payment Cards ────────────────── */
+.payment-card .card-number-display,
+.payment-card .info-item .value,
+.payment-card .stat-value {
+    color: #ffffff !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.payment-card .info-item .label,
+.payment-card .text-white-50 {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+[data-theme="light"] .payment-card {
+    /* Slightly lighter gradients for light mode if preferred, but keeping them rich */
+    box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.1);
+}
+
+/* ── Global Card Text White ────────────────────────────── */
+.payment-card,
+.payment-card div,
+.payment-card span,
+.payment-card small {
+    color: #ffffff !important;
+}
+
+.payment-card .text-muted,
+.payment-card .text-white-50,
+.payment-card .opacity-75,
+.payment-card .label {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+[data-theme="light"] .payment-card {
+    /* For light mode, if the card has a white/light bg, we need dark text */
+    /* But many cards have inline background gradients like blue or indigo */
+}
+
+/* Specific fix for bank names and other headers in cards */
+.payment-card .fw-700 {
+    color: #ffffff !important;
+}
+
+/* ── Final Contrast Polish ────────────────────────────── */
+.payment-card {
+    color: #ffffff !important;
+}
+
+.payment-card .text-main, 
+.payment-card .fw-600, 
+.payment-card .fw-700,
+.payment-card div,
+.payment-card span,
+.payment-card h1,
+.payment-card h2,
+.payment-card h3,
+.payment-card h4,
+.payment-card h5 {
+    color: #ffffff !important;
+}
+
+.payment-card .text-muted,
+.payment-card .text-white-50,
+.payment-card .opacity-75,
+.payment-card .label,
+.payment-card small {
+    color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Ensure icons in cards are also visible */
+.payment-card .bi {
+    color: #ffffff !important;
+}
+
+.payment-card .stat-icon {
+    background: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* ── Absolute Contrast Overrides ──────────────────────── */
+.payment-card.text-white,
+.payment-card.text-white div,
+.payment-card.text-white span,
+.payment-card.text-white small,
+.payment-card.text-white p,
+.payment-card.text-white h1,
+.payment-card.text-white h2,
+.payment-card.text-white h3,
+.payment-card.text-white h4,
+.payment-card.text-white h5 {
+    color: #ffffff !important;
+}
+
+.payment-card.text-white .text-muted,
+.payment-card.text-white .text-white-50,
+.payment-card.text-white .opacity-75,
+.payment-card.text-white .label {
+    color: rgba(255, 255, 255, 0.9) !important;
+}

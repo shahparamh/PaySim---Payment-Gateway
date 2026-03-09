@@ -75,6 +75,15 @@ exports.getCreditCards = async (req, res, next) => {
     }
 };
 
+exports.getCardDetails = async (req, res, next) => {
+    try {
+        const result = await instrumentService.getFullCardNumber(parseInt(req.params.id), req.user.id);
+        res.json(success('Card details retrieved', result));
+    } catch (err) {
+        next(err);
+    }
+};
+
 exports.removeCreditCard = async (req, res, next) => {
     try {
         await instrumentService.removeCreditCard(parseInt(req.params.id), req.user.id);
