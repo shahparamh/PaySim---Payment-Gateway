@@ -101,6 +101,12 @@ async function startServer() {
 
         // C. Static Files & Routing
         // (Static files can be used before session, but routes usually need it)
+        // 1. Root Route - Redirect to login
+        app.get('/', (req, res) => {
+            res.redirect('/login.html');
+        });
+
+        // 2. Static Files
         app.use(express.static(path.join(__dirname, 'public')));
         app.use('/demo', express.static(path.join(__dirname, 'DEMO_ECOMMERCE')));
 
