@@ -6,6 +6,7 @@
   "scripts": {
     "start": "LD_LIBRARY_PATH=./instantclient_21_15 node server.js",
     "dev": "LD_LIBRARY_PATH=./instantclient_21_15 nodemon server.js",
+    "build": "npm install",
     "seed": "LD_LIBRARY_PATH=./instantclient_21_15 node scripts/seed.js"
   },
   "keywords": [
@@ -29,11 +30,11 @@
     "oracledb": "^6.10.0",
     "reflect-metadata": "^0.2.2",
     "typeorm": "^0.3.28",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "nodemon": "^3.1.9"
   },
   "devDependencies": {
     "@types/node": "^25.3.3",
-    "nodemon": "^3.1.9",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }
