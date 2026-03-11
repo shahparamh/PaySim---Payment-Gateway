@@ -2,32 +2,32 @@
 # exit on error
 set -o errexit
 
-echo "--- Starting Render Build ---"
+echo "--- Render Build Process Started ---"
 
-# Step 1: Install libaio1 dependency (needed for Oracle Thick Mode)
-# We use dpkg -x to extract the library without needing root permissions or zstd
-echo "Downloading and extracting libaio1..."
+# 1. Oracle libaio1 dependency setup
+# We use a stable Ubuntu Focal package (uses xz compression, NOT zstd)
+# This avoids the "tar: zstd: Cannot exec" error on Render's build environment.
+echo "Downloading libaio1 (Ubuntu Focal)..."
 mkdir -p ./lib_temp
 cd ./lib_temp
+wget -q http://archive.ubuntu.com/ubuntu/pool/main/liba/libaio/libaio1_0.3.112-5_amd64.deb
 
-# Use an older version (Ubuntu Focal) that uses xz compression to avoid the zstd error
-# This version is stable and compatible.
-wget http://archive.ubuntu.com/ubuntu/pool/main/liba/libaio/libaio1_0.3.112-5_amd64.deb
-
-# Extract using dpkg -x instead of tar to satisfy user requirement
-# This handles the internal compression automatically if dpkg supports it
+echo "Extracting libaio1 using dpkg -x..."
+# dpkg -x handles the internal compression automatically
 dpkg -x libaio1_0.3.112-5_amd64.deb .
 
-# Step 2: Move the libraries to the instantclient directory
-echo "Moving libaio to instantclient_21_15..."
+echo "Merging libraries into instantclient_21_15..."
+# Ensure the target directory exists (it should as it's in the repo)
 mkdir -p ../instantclient_21_15
-cp usr/lib/x86_64-linux-gnu/libaio.so.1* ../instantclient_21_15/ || cp usr/lib/libaio.so.1* ../instantclient_21_15/
+# Use -a to preserve symbolic links (libaio.so.1 -> libaio.so.1.0.1)
+cp -a usr/lib/x86_64-linux-gnu/libaio.so.1* ../instantclient_21_15/ || cp -a usr/lib/libaio.so.1* ../instantclient_21_15/
 
 cd ..
 rm -rf ./lib_temp
 
-# Step 3: Install Node dependencies
+# 2. Install Node.js dependencies
+# We do this AFTER system libraries are prepared
 echo "Installing npm dependencies..."
 npm install
 
-echo "--- Build Complete ---"
+echo "--- Render Build Process Completed ---"

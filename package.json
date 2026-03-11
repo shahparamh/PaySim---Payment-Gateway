@@ -4,10 +4,10 @@
   "description": "Payment Gateway Platform with Integrated Payment Simulator",
   "main": "server.js",
   "scripts": {
-    "start": "LD_LIBRARY_PATH=./instantclient_21_15 node server.js",
-    "dev": "LD_LIBRARY_PATH=./instantclient_21_15 nodemon server.js",
+    "start": "LD_LIBRARY_PATH=$PWD/instantclient_21_15 node server.js",
+    "dev": "LD_LIBRARY_PATH=$PWD/instantclient_21_15 nodemon server.js",
     "build": "bash render-build.sh",
-    "seed": "LD_LIBRARY_PATH=./instantclient_21_15 node scripts/seed.js"
+    "seed": "LD_LIBRARY_PATH=$PWD/instantclient_21_15 node scripts/seed.js"
   },
   "keywords": [
     "payment",
