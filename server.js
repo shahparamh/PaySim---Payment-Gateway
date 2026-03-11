@@ -77,38 +77,31 @@ if (process.env.NODE_ENV === 'development') {
 
 async function startServer() {
     try {
-        // A. Verify Database Connection
+        // A. Static Files & Root Redirect (Priority)
+        app.get('/', (req, res) => res.redirect('/login.html'));
+        app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'] }));
+        app.use('/demo', express.static(path.join(__dirname, 'DEMO_ECOMMERCE'), { extensions: ['html'] }));
+
+        // B. Database Connection (Background)
         await AppDataSource.initialize();
         console.log('✅ TypeORM connected successfully to Oracle DB');
 
-        // B. Production-Safe Session Management
-        // We initialize this AFTER database connection is ready
+        // C. Production-Safe Session Management
         app.use(session({
             secret: process.env.SESSION_SECRET || 'dev-secret',
             resave: false,
             saveUninitialized: false,
             store: new TypeormStore({
                 cleanupLimit: 2,
-                limitSubquery: false, // Recommended for Oracle
+                limitSubquery: false,
                 ttl: 86400
             }).connect(AppDataSource.getRepository("Session")),
             cookie: {
                 secure: process.env.NODE_ENV === 'production',
                 httpOnly: true,
-                maxAge: 24 * 60 * 60 * 1000 // 24 hours
+                maxAge: 24 * 60 * 60 * 1000
             }
         }));
-
-        // C. Static Files & Routing
-        // (Static files can be used before session, but routes usually need it)
-        // 1. Root Route - Redirect to login
-        app.get('/', (req, res) => {
-            res.redirect('/login.html');
-        });
-
-        // 2. Static Files with .html extension support (Clean URLs)
-        app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'] }));
-        app.use('/demo', express.static(path.join(__dirname, 'DEMO_ECOMMERCE'), { extensions: ['html'] }));
 
         app.use(`/api/${API_VERSION}/auth`, authRoutes);
         app.use(`/api/${API_VERSION}/simulator`, simulatorRoutes);
@@ -121,12 +114,10 @@ async function startServer() {
         app.use(`/api/${API_VERSION}/platform/links`, linkRoutes);
         app.use(`/api/${API_VERSION}/platform/subscriptions`, subscriptionRoutes);
 
-        // D. Health Check and UI Routes
+        // D. Health Check
         app.get('/health', async (req, res) => {
             res.json({ status: 'UP', timestamp: new Date().toISOString() });
         });
-
-        app.get('/', (req, res) => res.redirect('/login.html'));
 
         // E. Error Handling
         app.use(errorHandler);
