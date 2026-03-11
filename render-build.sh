@@ -26,8 +26,8 @@ cd ..
 rm -rf ./lib_temp
 
 # 2. Install Node.js dependencies
-# Use --legacy-peer-deps to solve the connect-typeorm conflict
-echo "Installing npm dependencies with legacy-peer-deps..."
-npm install --legacy-peer-deps
+# We do this AFTER system libraries are prepared
+echo "Installing npm dependencies..."
+npm install
 
 echo "--- Render Build Process Completed ---"
