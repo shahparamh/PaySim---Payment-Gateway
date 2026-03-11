@@ -106,9 +106,9 @@ async function startServer() {
             res.redirect('/login.html');
         });
 
-        // 2. Static Files
-        app.use(express.static(path.join(__dirname, 'public')));
-        app.use('/demo', express.static(path.join(__dirname, 'DEMO_ECOMMERCE')));
+        // 2. Static Files with .html extension support (Clean URLs)
+        app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'] }));
+        app.use('/demo', express.static(path.join(__dirname, 'DEMO_ECOMMERCE'), { extensions: ['html'] }));
 
         app.use(`/api/${API_VERSION}/auth`, authRoutes);
         app.use(`/api/${API_VERSION}/simulator`, simulatorRoutes);
