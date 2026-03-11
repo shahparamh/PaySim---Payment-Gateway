@@ -1,27 +1,21 @@
 {
     "version": 2,
-    "builds": [
-        {
-            "src": "server.js",
-            "use": "@vercel/node"
-        }
-    ],
     "rewrites": [
         {
             "source": "/api/(.*)",
-            "destination": "server.js"
+            "destination": "https://paysim-payment-gateway.onrender.com/api/$1"
         },
         {
             "source": "/demo/(.*)",
-            "destination": "DEMO_ECOMMERCE/$1"
+            "destination": "/DEMO_ECOMMERCE/$1"
         },
         {
             "source": "/",
-            "destination": "public/login.html"
+            "destination": "/public/login.html"
         },
         {
             "source": "/(.*)",
-            "destination": "public/$1"
+            "destination": "/public/$1"
         }
     ]
 }
