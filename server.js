@@ -9,6 +9,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const session = require('express-session');
+const { TypeormStore } = require('connect-typeorm');
 const oracledb = require('oracledb');
 const path = require('path');
 
@@ -72,11 +73,16 @@ if (process.env.NODE_ENV === 'development') {
     app.use(morgan('dev'));
 }
 
-// Session management (used by Simulator UI)
+// Session management (Production-ready with TypeORM)
 app.use(session({
     secret: process.env.SESSION_SECRET || 'dev-secret',
     resave: false,
     saveUninitialized: false,
+    store: new TypeormStore({
+        cleanupLimit: 2,
+        limitSubquery: false, // Recommended for Oracle
+        ttl: 86400
+    }).connect(AppDataSource.getRepository("Session")),
     cookie: {
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,

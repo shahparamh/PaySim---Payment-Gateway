@@ -1801,3 +1801,20 @@ exports.audit_logs = new EntitySchema({
     }
 });
 
+exports.Session = new EntitySchema({
+    "name": "Session",
+    "tableName": "sessions",
+    "columns": {
+        "id": {
+            "type": "varchar",
+            "length": 255,
+            "primary": true
+        },
+        "expiresAt": {
+            "type": "number"
+        },
+        "data": {
+            "type": "clob"
+        }
+    }
+});

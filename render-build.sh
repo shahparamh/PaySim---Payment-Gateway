@@ -2,19 +2,29 @@
 # exit on error
 set -o errexit
 
-# Install libaio1 dependencies (workaround for Render native environment)
+echo "--- Starting Render Build ---"
+
+# Step 1: Install libaio1 dependencies (needed for Oracle Thick Mode)
+echo "Installing libaio1..."
 mkdir -p ./lib_temp
 cd ./lib_temp
-wget http://archive.ubuntu.com/ubuntu/pool/main/liba/libaio/libaio1_0.3.112-5_amd64.deb
-ar x libaio1_0.3.112-5_amd64.deb
-tar -xvf data.tar.xz
+# Use a more stable Ubuntu archive link
+wget http://archive.ubuntu.com/ubuntu/pool/main/liba/libaio/libaio1_0.3.112-13build1_amd64.deb || wget http://security.ubuntu.com/ubuntu/pool/main/liba/libaio/libaio1_0.3.112-13build1_amd64.deb
+ar x libaio1_0.3.112-13build1_amd64.deb
+tar -xvf data.tar.zst || tar -xvf data.tar.xz
 
-# Move the libraries to the instantclient directory so LD_LIBRARY_PATH finds them
-# Check the architecture path (might vary by OS, but usually usr/lib/x86_64-linux-gnu on Ubuntu)
+# Step 2: Move the libraries to the instantclient directory
+echo "Moving libaio to instantclient_21_15..."
+# Ensure the target directory exists
+mkdir -p ../instantclient_21_15
+# Extract to current folder then copy
 cp usr/lib/x86_64-linux-gnu/libaio.so.1* ../instantclient_21_15/ || cp usr/lib/libaio.so.1* ../instantclient_21_15/
 
 cd ..
 rm -rf ./lib_temp
 
-# Install Node dependencies
+# Step 3: Install Node dependencies
+echo "Installing npm dependencies..."
 npm install
+
+echo "--- Build Complete ---"
