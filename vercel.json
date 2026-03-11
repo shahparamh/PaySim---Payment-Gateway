@@ -2,6 +2,13 @@
     "version": 2,
     "cleanUrls": true,
     "trailingSlash": false,
+    "redirects": [
+        {
+            "source": "/",
+            "destination": "/login.html",
+            "permanent": true
+        }
+    ],
     "rewrites": [
         {
             "source": "/api/(.*)",
@@ -10,10 +17,6 @@
         {
             "source": "/demo/(.*)",
             "destination": "/DEMO_ECOMMERCE/$1"
-        },
-        {
-            "source": "/",
-            "destination": "/login.html"
         }
     ]
 }
