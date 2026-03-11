@@ -522,6 +522,7 @@ a {
     box-shadow: 0 0 0 4px var(--primary-glow);
     transform: translateY(-2px);
 }
+
 /* ── Premium Payment Card Component ────────────────────── */
 .payment-card {
     position: relative;
@@ -699,8 +700,8 @@ a {
     color: #ffffff !important;
 }
 
-.payment-card .text-main, 
-.payment-card .fw-600, 
+.payment-card .text-main,
+.payment-card .fw-600,
 .payment-card .fw-700,
 .payment-card div,
 .payment-card span,
