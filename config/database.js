@@ -3,19 +3,6 @@ const entities = require('../src/entities');
 const oracledb = require('oracledb');
 const path = require('path');
 
-try {
-    // Attempt to initialize thick mode with provided binaries
-    const libDir = process.env.ORACLE_LIB_DIR || path.join(__dirname, '..', 'instantclient_21_15');
-    oracledb.initOracleClient({ libDir });
-    console.log(`✅ Oracle Thick Client initialized from: ${libDir}`);
-} catch (err) {
-    if (err.message.includes('DPI-1047')) {
-        console.warn('⚠️ Oracle Thick Client skipped: missing system dependencies (libaio). Falling back to Thin mode...');
-    } else {
-        console.warn('⚠️ Oracle Thick Client initialization issue:', err.message);
-    }
-}
-
 const AppDataSource = new DataSource({
     type: "oracle",
     host: process.env.ORACLE_HOST || "localhost",

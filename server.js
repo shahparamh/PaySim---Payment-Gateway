@@ -9,7 +9,16 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const session = require('express-session');
+const oracledb = require('oracledb');
 const path = require('path');
+
+// Initialize Oracle Thick Client for Native Network Encryption support
+try {
+    oracledb.initOracleClient({ libDir: './instantclient_21_15' });
+    console.log('✅ Oracle Thick Client initialized successfully');
+} catch (err) {
+    console.error('❌ Failed to initialize Oracle Thick Client:', err.message);
+}
 
 const AppDataSource = require('./config/database');
 const { errorHandler } = require('./middleware/errorHandler');
@@ -30,7 +39,7 @@ const subscriptionRoutes = require('./routes/subscription.routes'); // Added Sub
 
 const app = express();
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 const API_VERSION = process.env.API_VERSION || 'v1';
 
 // ──────────────────────────────────────────────────────────
