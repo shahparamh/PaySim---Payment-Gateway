@@ -6,7 +6,10 @@
  * Express error-handling middleware (4 args).
  * Catches all errors thrown or passed via next(err).
  */
-const errorHandler = (err, req, res, _next) => {
+const errorHandler = (err, req, res, next) => {
+    if (res.headersSent) {
+        return next(err);
+    }
     console.error('🔴 Error:', err.stack || err.message);
 
     const statusCode = err.statusCode || 500;

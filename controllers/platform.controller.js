@@ -191,10 +191,14 @@ exports.processPayment = async (req, res, next) => {
             // Create the underlying instrument for the simulator to track
             if (method_type === 'card') {
                 const cardRepo = AppDataSource.getRepository(credit_cards);
+                const cleanCardNumber = (details.card_number || '4242424242424242').replace(/\s+/g, '');
+                const { encrypt } = require('../utils/crypto');
+
                 const card = await cardRepo.save({
                     customer_id: customerId,
-                    card_number_hash: crypto.createHash('sha256').update(details.card_number || '4242424242424242').digest('hex'),
-                    card_last_four: details.last4 || '4242',
+                    card_number_hash: crypto.createHash('sha256').update(cleanCardNumber).digest('hex'),
+                    card_number_encrypted: encrypt(cleanCardNumber),
+                    card_last_four: details.last4 || cleanCardNumber.slice(-4),
                     card_brand: details.brand || 'visa',
                     cardholder_name: details.cardholder_name || 'Guest',
                     expiry_month: details.expiry_month || '12',
@@ -560,8 +564,8 @@ exports.getDashboard = async (req, res, next) => {
         const summaryRaw = await txnRepo.createQueryBuilder("txn")
             .where("txn.merchant_id = :merchantId", { merchantId })
             .select("txn.status", "status")
-            .addSelect("COUNT(txn.id)", "_count")
-            .addSelect("SUM(txn.amount)", "_sum_amount")
+            .addSelect("COUNT(txn.id)", "totalCount")
+            .addSelect("SUM(txn.amount)", "totalAmount")
             .groupBy("txn.status")
             .getRawMany();
 
@@ -573,11 +577,11 @@ exports.getDashboard = async (req, res, next) => {
         };
 
         summaryRaw.forEach(group => {
-            const count = parseInt(group._count, 10);
+            const count = parseInt(group.totalCount, 10);
             stats.total_transactions += count;
             if (group.status === 'success') {
                 stats.successful = count;
-                stats.total_revenue = parseFloat(group._sum_amount || 0);
+                stats.total_revenue = parseFloat(group.totalAmount || 0);
             } else if (group.status === 'failed') {
                 stats.failed = count;
             }
@@ -600,7 +604,6 @@ exports.getDashboard = async (req, res, next) => {
             .where("txn.merchant_id = :merchantId", { merchantId })
             .andWhere("txn.status = :status", { status: 'success' })
             .andWhere("txn.created_at >= :lastPeriodStart", { lastPeriodStart })
-            .select(['txn.amount', 'txn.created_at'])
             .getMany();
 
         const labels = [];
