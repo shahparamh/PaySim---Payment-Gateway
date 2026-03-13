@@ -356,8 +356,12 @@ exports.verifyLoginOTP = async (req, res, next) => {
         const role = userType === 'admin' ? user.role : userType;
         const token = generateToken({ id: user.id, role, type: userType });
 
-        // Set session for simulator UI
-        req.session.user = { id: user.id, role, type: userType };
+        // Set session for simulator UI (Safe check for Render environment)
+        if (req.session) {
+            req.session.user = { id: user.id, role, type: userType };
+        } else {
+            console.warn('⚠️ [SESSION] req.session is undefined in verifyLoginOTP. Simulator UI may not track user state.');
+        }
 
         const { password_hash, pin_hash, ...userInfo } = user;
 
@@ -436,7 +440,12 @@ exports.verifyRegistrationOTP = async (req, res, next) => {
 
         const role = type === 'admin' ? user.role : type;
         const token = generateToken({ id: user.id, role, type });
-        req.session.user = { id: user.id, role, type };
+
+        if (req.session) {
+            req.session.user = { id: user.id, role, type };
+        } else {
+            console.warn('⚠️ [SESSION] req.session is undefined in verifyRegistrationOTP.');
+        }
 
         const { password_hash, pin_hash, ...userInfo } = user;
         res.status(201).json(success(`${type.charAt(0).toUpperCase() + type.slice(1)} registered successfully`, {
@@ -453,9 +462,13 @@ exports.verifyRegistrationOTP = async (req, res, next) => {
 // ============================================================
 
 exports.logout = (req, res) => {
-    req.session.destroy(() => {
-        res.json(success('Logged out successfully'));
-    });
+    if (req.session) {
+        req.session.destroy(() => {
+            res.json(success('Logged out successfully'));
+        });
+    } else {
+        res.json(success('Logged out successfully (session already cleared)'));
+    }
 };
 
 // ============================================================
