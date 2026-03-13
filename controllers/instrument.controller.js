@@ -58,7 +58,7 @@ exports.addCreditCard = async (req, res, next) => {
         const card = await instrumentService.addCreditCard(req.user.id, {
             card_number, cardholder_name, expiry_month, expiry_year,
             card_brand: card_brand || 'visa',
-            credit_limit: parseFloat(credit_limit) || 50000
+            credit_limit: (credit_limit !== undefined && !isNaN(parseFloat(credit_limit))) ? parseFloat(credit_limit) : 50000
         });
         res.status(201).json(success('Credit card added', card));
     } catch (err) {

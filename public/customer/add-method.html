@@ -306,7 +306,7 @@
                 expiry_month: document.getElementById('cardExpMonth').value,
                 expiry_year: document.getElementById('cardExpYear').value,
                 card_brand: document.getElementById('cardBrand').value,
-                credit_limit: 100000 // default simulated limit
+                credit_limit: parseFloat(document.getElementById('cardLimit').value) || 100000
             };
 
             const { ok, data } = await api('POST', '/instruments/cards', payload);
