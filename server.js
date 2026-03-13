@@ -92,6 +92,7 @@ async function startServer() {
             secret: process.env.SESSION_SECRET || 'dev-secret',
             resave: false,
             saveUninitialized: false,
+            proxy: true, // Required for secure cookies behind proxies like Render
             store: new TypeormStore({
                 cleanupLimit: 2,
                 limitSubquery: false,
@@ -100,7 +101,8 @@ async function startServer() {
             cookie: {
                 secure: process.env.NODE_ENV === 'production',
                 httpOnly: true,
-                maxAge: 24 * 60 * 60 * 1000
+                maxAge: 24 * 60 * 60 * 1000,
+                sameSite: 'lax'
             }
         }));
 
