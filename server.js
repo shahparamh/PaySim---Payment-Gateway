@@ -41,7 +41,7 @@ const linkRoutes = require('./routes/link.routes');
 const subscriptionRoutes = require('./routes/subscription.routes');
 
 const app = express();
-app.set("trust proxy", true);
+app.set('trust proxy', 1); // Trust Render's proxy to correctly identify client IP for rate limiting
 
 const PORT = process.env.PORT || 5000;
 const API_VERSION = process.env.API_VERSION || 'v1';
