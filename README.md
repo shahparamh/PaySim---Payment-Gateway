@@ -42,7 +42,7 @@
 ┌──────────────────────────────────────────────────────────────────┐
 │                     API LAYER (Express.js)                        │
 │  /api/v1/auth    /api/v1/platform    /api/v1/simulator           │
-│  /api/v1/admin   /api/v1/instruments /api/v1/dashboard           │
+│  /api/v1/admin   /api/v1/instrument   /api/v1/dashboard           │
 │  /api/v1/platform/links    /api/v1/platform/subscriptions        │
 ├──────────────────────────────────────────────────────────────────┤
 │                    MIDDLEWARE LAYER                               │
@@ -157,12 +157,12 @@ npm install
 
 ### Access the Platform
 
-| Portal | URL |
-|---|---|
-| 🏠 Home / Login | http://localhost:3000 |
-| 🏪 Merchant Dashboard | http://localhost:3000/merchant/dashboard.html |
-| 👨‍💼 Admin Dashboard | http://localhost:3000/admin/dashboard.html |
-| 🛒 E-commerce Demo | http://localhost:3000/demo |
+| Portal | URL | Credentials (Demo) |
+|---|---|---|
+| 🏠 Home / Login | http://localhost:5001 | `pratham.s3@gmail.com` / `password123` |
+| 🏪 Merchant Dashboard | http://localhost:5001/merchant/dashboard | `sales@nexstore.com` / `password123` |
+| 👨‍💼 Admin Dashboard | http://localhost:5001/admin/dashboard | `admin@paysim.com` / `password123` |
+| 🛒 E-commerce Demo | http://localhost:5001/demo | — |
 
 ---
 
@@ -230,7 +230,7 @@ Supported intervals: **Weekly**, **Monthly**, **Yearly**
 
 ## 🔌 API Quick Reference
 
-**Base URL:** `http://localhost:3000/api/v1`
+**Base URL:** `http://localhost:5001/api/v1`
 
 | Category | Endpoint | Method | Description |
 |---|---|---|---|
@@ -249,10 +249,10 @@ Supported intervals: **Weekly**, **Monthly**, **Yearly**
 | **Subs** | `/platform/subscriptions/plans` | POST | Create a billing plan |
 | **Subs** | `/platform/subscriptions/plans` | GET | List billing plans |
 | **Subs** | `/platform/subscriptions/plans/:id/link` | POST | Generate subscription link |
-| **Instruments** | `/instruments/wallets` | POST | Create a wallet |
-| **Instruments** | `/instruments/credit-cards` | POST | Add a credit card |
-| **Instruments** | `/instruments/bank-accounts` | POST | Add a bank account |
-| **Instruments** | `/instruments/payment-methods` | GET | List all payment methods |
+| **Instruments** | `/instrument/wallets` | POST | Create a wallet |
+| **Instruments** | `/instrument/cards` | POST | Add a credit card |
+| **Instruments** | `/instrument/bank-accounts` | POST | Add a bank account |
+| **Instruments** | `/instrument` | GET | List all payment methods |
 | **Simulator** | `/simulator/pay` | POST | Simulate a direct payment |
 | **Simulator** | `/simulator/history` | GET | Customer transaction history |
 | **Admin** | `/admin/stats` | GET | Platform-wide statistics |

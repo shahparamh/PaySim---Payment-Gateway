@@ -4,3 +4,16 @@ node_modules/
 .DS_Store
 
 /generated/prisma
+
+# Data
+database.sqlite
+*.sqlite
+
+# Binaries
+instantclient_23/
+
+# Build artifacts
+dist/
+build/
+.vercel
+.cache/

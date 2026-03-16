@@ -1,6 +1,6 @@
 # PaySim — API Documentation
 
-**Base URL:** `http://localhost:3000/api/v1`
+**Base URL:** `http://localhost:5001/api/v1`
 
 ---
 
@@ -140,7 +140,7 @@ Returns the current user's profile.
 
 🔒 **Auth:** JWT (Customer)
 
-### POST `/instruments/wallets`
+### POST `/instrument/wallets`
 
 **Body:**
 ```json
@@ -160,13 +160,13 @@ Returns the current user's profile.
 
 ---
 
-### GET `/instruments/wallets`
+### GET `/instrument/wallets`
 
 Returns all wallets for the authenticated customer.
 
 ---
 
-### PUT `/instruments/wallets/:id/topup`
+### PUT `/instrument/wallets/:id/topup`
 
 **Body:**
 ```json
@@ -175,7 +175,7 @@ Returns all wallets for the authenticated customer.
 
 ---
 
-### POST `/instruments/credit-cards`
+### POST `/instrument/cards`
 
 **Body:**
 ```json
@@ -191,19 +191,19 @@ Returns all wallets for the authenticated customer.
 
 ---
 
-### GET `/instruments/credit-cards`
+### GET `/instrument/cards`
 
 Returns all credit cards (masked).
 
 ---
 
-### DELETE `/instruments/credit-cards/:id`
+### DELETE `/instrument/cards/:id`
 
 Removes a credit card.
 
 ---
 
-### POST `/instruments/bank-accounts`
+### POST `/instrument/bank-accounts`
 
 **Body:**
 ```json
@@ -219,19 +219,19 @@ Removes a credit card.
 
 ---
 
-### GET `/instruments/bank-accounts`
+### GET `/instrument/bank-accounts`
 
 Returns all bank accounts (masked).
 
 ---
 
-### DELETE `/instruments/bank-accounts/:id`
+### DELETE `/instrument/bank-accounts/:id`
 
 Removes a bank account.
 
 ---
 
-### POST `/instruments/net-banking`
+### POST `/instrument/net-banking`
 
 Link a bank account for net banking.
 
@@ -242,7 +242,7 @@ Link a bank account for net banking.
 
 ---
 
-### GET `/instruments/payment-methods`
+### GET `/instrument/payment-methods`
 
 Returns all payment methods (unified view across instruments).
 
@@ -259,7 +259,7 @@ Returns all payment methods (unified view across instruments).
 
 ---
 
-### PUT `/instruments/payment-methods/:id/default`
+### PUT `/instrument/payment-methods/:id/default`
 
 Set a payment method as default.
 
@@ -324,7 +324,7 @@ Paginated transaction history for the customer.
 
 ---
 
-### GET `/simulator/instruments`
+### GET `/simulator/instrument`
 
 Returns customer instruments grouped by type.
 
@@ -407,7 +407,7 @@ Create a new payment session.
   "success": true,
   "data": {
     "session_id": "uuid",
-    "checkout_url": "http://localhost:3000/checkout?session=uuid",
+    "checkout_url": "http://localhost:5001/checkout?session=uuid",
     "amount": 999.00,
     "currency": "INR",
     "status": "pending",

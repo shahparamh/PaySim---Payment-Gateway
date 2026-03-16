@@ -423,13 +423,13 @@ Both modes converge at the **Transaction Processor**, which:
 |---|---|---|---|
 | `POST` | `/api/v1/simulator/pay` | Simulator | Process a simulated payment |
 | `GET` | `/api/v1/simulator/history` | Simulator | List transaction history |
-| `GET` | `/api/v1/simulator/instruments` | Simulator | List user's instruments |
+| `GET` | `/api/v1/simulator/instrument` | Simulator | List user's instruments |
 | `POST` | `/api/v1/platform/sessions` | Platform | Create a payment session |
 | `GET` | `/api/v1/platform/sessions/:id` | Platform | Get session details |
 | `POST` | `/api/v1/platform/sessions/:id/pay` | Platform | Process payment on a session |
 | `GET` | `/api/v1/platform/dashboard` | Platform | Merchant analytics |
 | `POST` | `/api/v1/auth/register` | Both | Register user/merchant |
 | `POST` | `/api/v1/auth/login` | Both | Login |
-| `POST` | `/api/v1/instruments/wallet` | Both | Create/top-up wallet |
-| `POST` | `/api/v1/instruments/card` | Both | Add credit card |
-| `POST` | `/api/v1/instruments/bank` | Both | Add bank account |
+| `POST` | `/api/v1/instrument/wallet` | Both | Create/top-up wallet |
+| `POST` | `/api/v1/instrument/card` | Both | Add credit card |
+| `POST` | `/api/v1/instrument/bank` | Both | Add bank account |

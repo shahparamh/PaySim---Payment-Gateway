@@ -1,30 +1,47 @@
-#!/bin/bash
+# Get the directory where the script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PROJECT_ROOT="$SCRIPT_DIR"
 
-# ============================================================
-# PaySim — Startup Script
-# ============================================================
+# 1. Cleanup existing processes
+echo "🧹 Cleaning up port 5001..."
+lsof -i :5001 -t | xargs kill -9 2>/dev/null
 
-echo "🚀 Starting PaySim Payment Gateway..."
-echo "----------------------------------------------------"
+echo "================================================"
+echo "🚀 PAYSIM PLATFORM: STARTING SERVICES (v3)"
+echo "================================================"
+echo "🔗 APP URL      : http://localhost:5001"
+echo "================================================"
 
-# 1. Environment variables are handled automatically by Node.js and Prisma
-
-# ==========================================
-# 2. Start Application
-# ==========================================
-
-echo "🚀 Launching PaySim (OracleDB/TypeORM Mode)..."
-
-# 1. Install dependencies if needed
-if [ ! -d "node_modules" ]; then
-    echo "📦 Installing Node.js dependencies..."
-    npm install
+# 2. Build Frontend
+echo "🔨 Building frontend..."
+cd "$PROJECT_ROOT/frontend"
+npm run build
+if [ $? -ne 0 ]; then
+    echo "❌ Frontend build failed! Fix errors above then re-run."
+    exit 1
 fi
+echo "✅ Frontend built successfully."
+echo ""
 
-# 2. Database Sync Note
-echo "⚙️  TypeORM will synchronize the schema automatically on startup (synchronize: true)..."
-echo "✅ Configuration ready"
+# 3. Start Backend & Watcher in background
+cd "$PROJECT_ROOT/backend"
+npm run dev > server.log 2>&1 &
+BACKEND_PID=$!
 
-# 3. Start the application
-echo "🌐 Starting Node.js server..."
-npm run dev
+node watcher.js &
+WATCHER_PID=$!
+
+# 3. Handle Script Exit
+cleanup() {
+    echo -e "\n🛑 Shutting down..."
+    kill $BACKEND_PID $WATCHER_PID 2>/dev/null
+    exit
+}
+trap cleanup SIGINT SIGTERM
+
+echo "✅ Services started."
+echo "📟 Monitoring for NEW OTPs (Powered by watcher.js)..."
+echo "------------------------------------------------"
+
+# Keep the script alive
+wait

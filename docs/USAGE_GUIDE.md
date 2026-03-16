@@ -6,12 +6,13 @@ Welcome to the PaySim Payment Gateway Platform. This guide explains how to use t
 
 ## 1. Getting Started (Credentials)
 
-The database comes pre-seeded with the following test accounts. Use these to log in to the dashboard at `http://localhost:3000/login.html`.
+The database comes pre-seeded with the following test accounts. Use these to log in to the dashboard at `http://localhost:5001/login.html`.
 
 | Role | Email | Password | PIN | Description |
 |---|---|---|---|---|
-| **Customer** | `john@doe.com` | `customer123` | `1234` | Standard user for making payments |
-| **Merchant** | `store@main.com` | `merchant123` | N/A | Business owner to view analytics & manage keys |
+| **Customer** | `pratham.s3@gmail.com` | `password123` | `2005` | Standard user for making payments |
+| **Merchant** | `sales@nexstore.com` | `password123` | N/A | Business owner to view analytics & manage keys |
+| **Admin** | `admin@paysim.com` | `password123` | N/A | Platform administrator |
 
 > [!IMPORTANT]
 > **Database Stack**: The system now runs on **Oracle DB**. Ensure your `.env` is configured with valid Oracle credentials.
@@ -55,7 +56,7 @@ Platform mode is used when you want to integrate PaySim into an external website
 
 ### Example: Creating a Session
 ```bash
-curl -X POST http://localhost:3000/api/v1/platform/create-payment-session \
+curl -X POST http://localhost:5001/api/v1/platform/create-payment-session \
   -H "x-api-key: sk_test_..." \
   -H "Content-Type: application/json" \
   -d '{
