@@ -298,6 +298,8 @@ node scripts/get_merchant.js      # List all registered merchants
 
 | Document | Description |
 |---|---|
+| [How to Run](./docs/HOW_TO_RUN.md) | Local and Cloud setup instructions |
+| [Oracle Docker](./docs/ORACLE_DOCKER_SETUP.md) | Local database setup using Docker |
 | [Usage Guide](./docs/USAGE_GUIDE.md) | Step-by-step walkthrough for first-time users |
 | [Architecture](./docs/ARCHITECTURE.md) | System design, data flow, and component overview |
 | [API Documentation](./docs/API_DOCUMENTATION.md) | Complete REST API reference with examples |
