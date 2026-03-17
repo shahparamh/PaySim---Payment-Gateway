@@ -40,19 +40,19 @@
         │                │                │              │
         ▼                ▼                ▼              ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│                     API LAYER (Express.js)                        │
+│                     API LAYER (Express.js)                       │
 │  /api/v1/auth    /api/v1/platform    /api/v1/simulator           │
-│  /api/v1/admin   /api/v1/instrument   /api/v1/dashboard           │
+│  /api/v1/admin   /api/v1/instrument   /api/v1/dashboard          │
 │  /api/v1/platform/links    /api/v1/platform/subscriptions        │
 ├──────────────────────────────────────────────────────────────────┤
-│                    MIDDLEWARE LAYER                               │
+│                    MIDDLEWARE LAYER                              │
 │  JWT Auth │ API Key Auth │ Rate Limiter │ Fraud Engine │ Logger  │
 ├──────────────────────────────────────────────────────────────────┤
 │                    SERVICE LAYER                                 │
-│  TransactionService │ SessionService │ FraudService │ EmailSvc  │
-│  InstrumentService  │ SimulatorService │ SubscriptionService    │
+│  TransactionService │ SessionService │ FraudService │ EmailSvc   │
+│  InstrumentService  │ SimulatorService │ SubscriptionService     │
 ├──────────────────────────────────────────────────────────────────┤
-│                    DATA LAYER (TypeORM + Oracle DB)               │
+│                    DATA LAYER (TypeORM + Oracle DB)              │
 │  merchants │ customers │ transactions │ payment_sessions         │
 │  wallets │ credit_cards │ bank_accounts │ fraud_alerts           │
 │  subscription_plans │ subscriptions                              │
