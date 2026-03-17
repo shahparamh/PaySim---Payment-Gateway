@@ -18,9 +18,17 @@ const path = require('path');
 // 1. Initialize Oracle Thick Client (Conditional)
 if (process.env.DB_TYPE === 'oracle') {
     try {
-        const clientOpts = {
-            libDir: "/Users/sandesara/Desktop/Project/instantclient_23",
-        };
+        const clientOpts = {};
+        if (process.env.ORACLE_LIB_DIR) {
+            clientOpts.libDir = process.env.ORACLE_LIB_DIR;
+            console.log(`Setting Oracle Client dir from env: ${clientOpts.libDir}`);
+        } else if (process.platform === 'darwin' || process.platform === 'win32') {
+            // fallback for local macOS/Windows environments
+            clientOpts.libDir = "/Users/sandesara/Desktop/Project/instantclient_23"; 
+        }
+        
+        // On Linux (Docker), leaving clientOpts empty tells oracledb 
+        // to use system paths (LD_LIBRARY_PATH) defined in the Dockerfile
         oracledb.initOracleClient(clientOpts);
         console.log('✅ Oracle Thick Client initialized successfully');
     } catch (err) {
