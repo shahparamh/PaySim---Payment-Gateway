@@ -15,7 +15,7 @@ RUN wget https://download.oracle.com/otn_software/linux/instantclient/2113000/in
     && rm instantclient-basiclite-linux.x64-21.13.0.0.0dbru.zip
 
 # Set environment variable so the Oracle driver finds the libraries automatically on Linux
-ENV LD_LIBRARY_PATH=/opt/oracle/instantclient_21_12
+ENV LD_LIBRARY_PATH=/opt/oracle/instantclient_21_13
 
 # Set work directory for the application
 WORKDIR /app
