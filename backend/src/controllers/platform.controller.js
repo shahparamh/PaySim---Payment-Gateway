@@ -31,7 +31,7 @@ const savePaymentOtp = async (email, otp) => {
     await repo.save({
         email,
         code: otp,
-        type: 'gateway_payment',
+        type: 'payment',
         expires_at: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
     });
 };
@@ -39,7 +39,7 @@ const savePaymentOtp = async (email, otp) => {
 const verifyPaymentOtpDB = async (email, inputCode) => {
     const repo = AppDataSource.getRepository(verification_codes);
     const entry = await repo.findOne({
-        where: { email, code: String(inputCode).trim(), type: 'gateway_payment' },
+        where: { email: email.toLowerCase(), code: String(inputCode).trim(), type: 'payment' },
         order: { created_at: 'DESC' }
     });
 
@@ -188,7 +188,8 @@ exports.getPayment = async (req, res, next) => {
 
 exports.processPayment = async (req, res, next) => {
     try {
-        const { session_id, payment_method_id, email, method_type, details, pin, otp_code } = req.body;
+        let { session_id, payment_method_id, email, method_type, details, pin, otp_code } = req.body;
+        if (email) email = email.toLowerCase();
         let customerId;
 
         // 1. Resolve Customer (Authenticated or Guest)
