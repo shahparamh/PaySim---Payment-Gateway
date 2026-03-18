@@ -1894,7 +1894,10 @@ exports.Session = new EntitySchema({
         },
         "data": {
             "type": "clob",
-            "nullable": true
+            "transformer": {
+                "to": (value) => value || "{}",
+                "from": (value) => value
+            }
         }
     }
 });
