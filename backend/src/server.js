@@ -3,6 +3,7 @@
 // ============================================================
 
 require('dotenv').config();
+require('reflect-metadata');
 
 const express = require('express');
 const cors = require('cors');
@@ -158,7 +159,7 @@ async function startServer() {
         });
 
     } catch (err) {
-        console.error('❌ Failed to start server:', err.message);
+        console.error('❌ Failed to start server:', err);
         process.exit(1);
     }
 }

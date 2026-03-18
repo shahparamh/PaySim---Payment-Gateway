@@ -8,7 +8,7 @@ const dbType = process.env.DB_TYPE || 'oracle';
 
 const config = {
     type: dbType,
-    synchronize: true, // Auto-create tables in dev environment
+    synchronize: process.env.NODE_ENV !== 'production', // Disable on Render
     logging: false,
     entities: Object.values(entities),
     subscribers: [],
