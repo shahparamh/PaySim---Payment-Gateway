@@ -1893,7 +1893,8 @@ exports.Session = new EntitySchema({
             "type": "int"
         },
         "data": {
-            "type": "clob"
+            "type": "clob",
+            "nullable": true
         }
     }
 });
