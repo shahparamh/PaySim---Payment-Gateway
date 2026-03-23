@@ -51,6 +51,6 @@ exports.profileSchema = [
 
 // PIN Change Validation
 exports.pinChangeSchema = [
-    body('old_pin').isLength({ min: 4, max: 6 }).withMessage('Old PIN must be 4-6 digits'),
+    body('old_pin').optional({ values: 'falsy' }).isLength({ min: 4, max: 6 }).withMessage('Old PIN must be 4-6 digits'),
     body('new_pin').isLength({ min: 4, max: 6 }).withMessage('New PIN must be 4-6 digits')
 ];

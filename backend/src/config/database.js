@@ -5,6 +5,12 @@ const path = require('path');
 
 const dbType = process.env.DB_TYPE || 'oracle';
 
+if (dbType === 'oracle') {
+    try {
+        const libDir = path.join(__dirname, '..', '..', '..', 'instantclient_21_15');
+        oracledb.initOracleClient({ libDir });
+    } catch (err) {}
+}
 
 const config = {
     type: dbType,

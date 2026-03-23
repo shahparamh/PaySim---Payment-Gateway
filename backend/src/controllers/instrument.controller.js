@@ -11,7 +11,7 @@ exports.createWallet = async (req, res, next) => {
     try {
         const { currency, initial_balance } = req.body;
         const wallet = await instrumentService.createWallet(
-            req.user.id, currency || 'INR', parseFloat(initial_balance) || 0
+            parseInt(req.user.id), currency || 'INR', parseFloat(initial_balance) || 0
         );
         res.status(201).json(success('Wallet created', wallet));
     } catch (err) {
@@ -21,7 +21,7 @@ exports.createWallet = async (req, res, next) => {
 
 exports.getWallets = async (req, res, next) => {
     try {
-        const wallets = await instrumentService.getWallets(req.user.id);
+        const wallets = await instrumentService.getWallets(parseInt(req.user.id));
         res.json(success('Wallets retrieved', wallets));
     } catch (err) {
         next(err);
@@ -35,7 +35,7 @@ exports.topUpWallet = async (req, res, next) => {
             return res.status(400).json(error('VALIDATION', 'A positive amount is required'));
         }
         const wallet = await instrumentService.topUpWallet(
-            parseInt(req.params.id), req.user.id, parseFloat(amount)
+            parseInt(req.params.id), parseInt(req.user.id), parseFloat(amount)
         );
         res.json(success('Wallet topped up', wallet));
     } catch (err) {
@@ -55,7 +55,7 @@ exports.addCreditCard = async (req, res, next) => {
             );
         }
 
-        const card = await instrumentService.addCreditCard(req.user.id, {
+        const card = await instrumentService.addCreditCard(parseInt(req.user.id), {
             card_number, cardholder_name, expiry_month, expiry_year,
             card_brand: card_brand || 'visa',
             credit_limit: (credit_limit !== undefined && !isNaN(parseFloat(credit_limit))) ? parseFloat(credit_limit) : 50000
@@ -68,7 +68,7 @@ exports.addCreditCard = async (req, res, next) => {
 
 exports.getCreditCards = async (req, res, next) => {
     try {
-        const cards = await instrumentService.getCreditCards(req.user.id);
+        const cards = await instrumentService.getCreditCards(parseInt(req.user.id));
         res.json(success('Credit cards retrieved', cards));
     } catch (err) {
         next(err);
@@ -77,7 +77,7 @@ exports.getCreditCards = async (req, res, next) => {
 
 exports.getCardDetails = async (req, res, next) => {
     try {
-        const result = await instrumentService.getFullCardNumber(parseInt(req.params.id), req.user.id);
+        const result = await instrumentService.getFullCardNumber(parseInt(req.params.id), parseInt(req.user.id));
         res.json(success('Card details retrieved', result));
     } catch (err) {
         next(err);
@@ -86,7 +86,7 @@ exports.getCardDetails = async (req, res, next) => {
 
 exports.removeCreditCard = async (req, res, next) => {
     try {
-        await instrumentService.removeCreditCard(parseInt(req.params.id), req.user.id);
+        await instrumentService.removeCreditCard(parseInt(req.params.id), parseInt(req.user.id));
         res.json(success('Credit card removed'));
     } catch (err) {
         next(err);
@@ -105,7 +105,7 @@ exports.addBankAccount = async (req, res, next) => {
             );
         }
 
-        const account = await instrumentService.addBankAccount(req.user.id, {
+        const account = await instrumentService.addBankAccount(parseInt(req.user.id), {
             account_number, bank_name, ifsc_code, account_holder_name,
             account_type: account_type || 'savings',
             balance: parseFloat(balance) || 0
@@ -118,7 +118,7 @@ exports.addBankAccount = async (req, res, next) => {
 
 exports.getBankAccounts = async (req, res, next) => {
     try {
-        const userId = req.user.id;
+        const userId = parseInt(req.user.id);
         const role = req.user.role || 'customer';
         const accounts = await instrumentService.getBankAccounts(userId, role);
         console.log(`🏦 [BANKS_FETCH] UserID: ${userId}, Role: ${role}, Found: ${accounts.length}`);
@@ -130,7 +130,7 @@ exports.getBankAccounts = async (req, res, next) => {
 
 exports.removeBankAccount = async (req, res, next) => {
     try {
-        await instrumentService.removeBankAccount(parseInt(req.params.id), req.user.id, req.user.role || 'customer');
+        await instrumentService.removeBankAccount(parseInt(req.params.id), parseInt(req.user.id), req.user.role || 'customer');
         res.json(success('Bank account removed'));
     } catch (err) {
         next(err);
@@ -147,7 +147,7 @@ exports.addNetBanking = async (req, res, next) => {
                 error('VALIDATION', 'bank_account_id is required to link net banking')
             );
         }
-        const result = await instrumentService.addNetBanking(req.user.id, bank_account_id);
+        const result = await instrumentService.addNetBanking(parseInt(req.user.id), bank_account_id);
         res.status(201).json(success('Net banking linked', result));
     } catch (err) {
         next(err);
@@ -158,7 +158,7 @@ exports.addNetBanking = async (req, res, next) => {
 
 exports.getPaymentMethods = async (req, res, next) => {
     try {
-        const methods = await instrumentService.getPaymentMethods(req.user.id, req.user.role || 'customer');
+        const methods = await instrumentService.getPaymentMethods(parseInt(req.user.id), req.user.role || 'customer');
         res.json(success('Payment methods retrieved', methods));
     } catch (err) {
         next(err);
@@ -167,7 +167,7 @@ exports.getPaymentMethods = async (req, res, next) => {
 
 exports.setDefaultMethod = async (req, res, next) => {
     try {
-        await instrumentService.setDefaultMethod(parseInt(req.params.id), req.user.id);
+        await instrumentService.setDefaultMethod(parseInt(req.params.id), parseInt(req.user.id));
         res.json(success('Default payment method updated'));
     } catch (err) {
         next(err);
@@ -184,7 +184,7 @@ exports.payCreditCardBill = async (req, res, next) => {
         }
 
         const result = await instrumentService.payCreditCardBill(
-            req.user.id, cardId, source_method_id, parseFloat(amount), pin
+            parseInt(req.user.id), cardId, source_method_id, parseFloat(amount), pin
         );
 
         res.json(success('Credit card bill paid successfully', result));
@@ -195,7 +195,7 @@ exports.payCreditCardBill = async (req, res, next) => {
 
 exports.removeInstrument = async (req, res, next) => {
     try {
-        const result = await instrumentService.removePaymentMethod(req.params.id, req.user.id);
+        const result = await instrumentService.removePaymentMethod(req.params.id, parseInt(req.user.id));
         res.json(success('Payment method removed successfully', result));
     } catch (err) {
         next(err);

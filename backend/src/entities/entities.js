@@ -1895,8 +1895,15 @@ exports.Session = new EntitySchema({
         "data": {
             "type": "clob",
             "transformer": {
-                "to": (value) => value || "{}",
-                "from": (value) => value
+                "to": (value) => {
+                    if (value === undefined || value === null) return "{}";
+                    if (typeof value === 'string' && value === "undefined") return "{}";
+                    return value;
+                },
+                "from": (value) => {
+                    if (value === "undefined" || value === null) return "{}";
+                    return value;
+                }
             }
         }
     }

@@ -48,7 +48,7 @@ async function processPayment({ customerId, paymentMethodId, amount, pin, receiv
                 const expiresAt = new Date(Date.now() + 5 * 60000); // 5 mins
 
                 const userRepo = AppDataSource.getRepository(customers);
-                const user = await userRepo.findOne({ where: { id: customerId } });
+                const user = await userRepo.findOne({ where: { id: parseInt(customerId) } });
 
                 const vcRepo = AppDataSource.getRepository(verification_codes);
                 await vcRepo.save({
@@ -68,7 +68,7 @@ async function processPayment({ customerId, paymentMethodId, amount, pin, receiv
             } else {
                 // Verify OTP
                 const userRepo = AppDataSource.getRepository(customers);
-                const user = await userRepo.findOne({ where: { id: customerId } });
+                const user = await userRepo.findOne({ where: { id: parseInt(customerId) } });
 
                 const vcRepo = AppDataSource.getRepository(verification_codes);
                 const queryBuilder = vcRepo.createQueryBuilder("vc");
@@ -92,8 +92,8 @@ async function processPayment({ customerId, paymentMethodId, amount, pin, receiv
         // ── 1. PIN Verification ────────────────────────────
         const userRepo = AppDataSource.getRepository(customers);
         const customer = await userRepo.findOne({
-            where: { id: customerId },
-            select: ['pin_hash']
+            where: { id: parseInt(customerId) },
+            select: ['id', 'pin_hash', 'email']
         });
 
         if (!customer) throw Object.assign(new Error('Customer not found'), { statusCode: 404 });

@@ -502,13 +502,13 @@ exports.getProfile = async (req, res, next) => {
 
         if (type === 'customer') {
             const customerRepo = AppDataSource.getRepository(customers);
-            user = await customerRepo.findOneBy({ id });
+            user = await customerRepo.findOneBy({ id: parseInt(id) });
         } else if (type === 'merchant') {
             const merchantRepo = AppDataSource.getRepository(merchants);
-            user = await merchantRepo.findOneBy({ id });
-        } else {
+            user = await merchantRepo.findOneBy({ id: parseInt(id) });
+        } else { // This covers 'admin'
             const adminRepo = AppDataSource.getRepository(admins);
-            user = await adminRepo.findOneBy({ id });
+            user = await adminRepo.findOneBy({ id: parseInt(id) });
         }
 
         if (!user) {
@@ -516,7 +516,7 @@ exports.getProfile = async (req, res, next) => {
         }
 
         const { password_hash, pin_hash, ...profile } = user;
-        res.json(success('Profile retrieved', { ...profile, type }));
+        res.json(success('Profile retrieved', { ...profile, type, has_pin: !!pin_hash }));
     } catch (err) {
         next(err);
     }
@@ -545,13 +545,13 @@ exports.changePassword = async (req, res, next) => {
         let user;
         if (type === 'customer') {
             const customerRepo = AppDataSource.getRepository(customers);
-            user = await customerRepo.findOne({ where: { id }, select: ['password_hash'] });
+            user = await customerRepo.findOne({ where: { id: parseInt(id) }, select: ['id', 'password_hash'] });
         } else if (type === 'merchant') {
             const merchantRepo = AppDataSource.getRepository(merchants);
-            user = await merchantRepo.findOne({ where: { id }, select: ['password_hash'] });
+            user = await merchantRepo.findOne({ where: { id: parseInt(id) }, select: ['id', 'password_hash'] });
         } else {
             const adminRepo = AppDataSource.getRepository(admins);
-            user = await adminRepo.findOne({ where: { id }, select: ['password_hash'] });
+            user = await adminRepo.findOne({ where: { id: parseInt(id) }, select: ['id', 'password_hash'] });
         }
 
         if (!user) {

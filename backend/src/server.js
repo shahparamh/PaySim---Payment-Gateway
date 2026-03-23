@@ -14,28 +14,7 @@ const { TypeormStore } = require('connect-typeorm');
 const oracledb = require('oracledb');
 const path = require('path');
 
-// 1. Initialize Oracle Thick Client
-// This is required for Native Network Encryption support (ORA-12660)
-// 1. Initialize Oracle Thick Client (Conditional)
-if (process.env.DB_TYPE === 'oracle') {
-    try {
-        const clientOpts = {};
-        if (process.env.ORACLE_LIB_DIR) {
-            clientOpts.libDir = process.env.ORACLE_LIB_DIR;
-            console.log(`Setting Oracle Client dir from env: ${clientOpts.libDir}`);
-        } else if (process.platform === 'darwin' || process.platform === 'win32') {
-            // fallback for local macOS/Windows environments
-            clientOpts.libDir = "/Users/sandesara/Desktop/Project/instantclient_23"; 
-        }
-        
-        // On Linux (Docker), leaving clientOpts empty tells oracledb 
-        // to use system paths (LD_LIBRARY_PATH) defined in the Dockerfile
-        oracledb.initOracleClient(clientOpts);
-        console.log('✅ Oracle Thick Client initialized successfully');
-    } catch (err) {
-        console.error('❌ Failed to initialize Oracle Thick Client:', err.message);
-    }
-}
+
 
 const AppDataSource = require('./config/database');
 const { errorHandler } = require('./middleware/errorHandler');
@@ -74,6 +53,7 @@ app.use(helmet({
             styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://fonts.googleapis.com", "https://fonts.gstatic.com"],
             fontSrc: ["'self'", "https://cdn.jsdelivr.net", "https://fonts.gstatic.com"],
             imgSrc: ["'self'", "data:"],
+            mediaSrc: ["'self'", "data:"],
             connectSrc: ["'self'", "ws:", "wss:", "http://localhost:*", "https://cdn.jsdelivr.net"]
         },
     },
@@ -101,10 +81,31 @@ async function startServer() {
             
             // Redirect root to index.html
             app.get('/', (req, res) => res.sendFile(path.join(frontendPath, 'index.html')));
-            
-            // SPA fallback: handle React routing
+        }
+
+        // B. API Routes & Health Check
+        app.use(`/api/${API_VERSION}/auth`, authRoutes);
+        app.use(`/api/${API_VERSION}/simulator`, simulatorRoutes);
+        app.use(`/api/${API_VERSION}/platform`, platformRoutes);
+        app.use(`/api/${API_VERSION}/payments`, paymentRoutes);
+        app.use(`/api/${API_VERSION}/instrument`, instrumentRoutes);
+        app.use(`/api/${API_VERSION}/dashboard`, dashboardRoutes);
+        app.use(`/api/${API_VERSION}/user`, userRoutes);
+        app.use(`/api/${API_VERSION}/admin`, adminRoutes);
+        app.use(`/api/${API_VERSION}/platform/links`, linkRoutes);
+        app.use(`/api/${API_VERSION}/platform/subscriptions`, subscriptionRoutes);
+        app.use(`/api/${API_VERSION}/notifications`, notificationRoutes);
+
+        // D. Health Check
+        app.get('/health', async (req, res) => {
+            res.json({ status: 'UP', timestamp: new Date().toISOString() });
+        });
+
+        // SPA fallback: handle React routing (MUST BE AFTER API ROUTES)
+        if (process.env.SERVE_FRONTEND !== 'false') {
+            const frontendPath = path.join(__dirname, '../../frontend/dist');
             app.get('*', (req, res, next) => {
-                if (req.url.startsWith('/api/')) return next();
+                if (req.url.startsWith('/api/') || req.url === '/health') return next();
                 res.sendFile(path.join(frontendPath, 'index.html'));
             });
         }
@@ -132,22 +133,7 @@ async function startServer() {
             }
         }));
 
-        app.use(`/api/${API_VERSION}/auth`, authRoutes);
-        app.use(`/api/${API_VERSION}/simulator`, simulatorRoutes);
-        app.use(`/api/${API_VERSION}/platform`, platformRoutes);
-        app.use(`/api/${API_VERSION}/payments`, paymentRoutes);
-        app.use(`/api/${API_VERSION}/instrument`, instrumentRoutes);
-        app.use(`/api/${API_VERSION}/dashboard`, dashboardRoutes);
-        app.use(`/api/${API_VERSION}/users`, userRoutes);
-        app.use(`/api/${API_VERSION}/admin`, adminRoutes);
-        app.use(`/api/${API_VERSION}/platform/links`, linkRoutes);
-        app.use(`/api/${API_VERSION}/platform/subscriptions`, subscriptionRoutes);
-        app.use(`/api/${API_VERSION}/notifications`, notificationRoutes);
 
-        // D. Health Check
-        app.get('/health', async (req, res) => {
-            res.json({ status: 'UP', timestamp: new Date().toISOString() });
-        });
 
         // E. Error Handling
         app.use(errorHandler);

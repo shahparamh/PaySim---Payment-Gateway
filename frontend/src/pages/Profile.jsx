@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { User, ShieldCheck, Mail, Phone, Lock, Loader2, Check } from "lucide-react";
+import { ShieldCheck, ShieldAlert, Check, User, Mail, Phone, Lock, Loader2 } from "lucide-react";
 import { AppLayout } from "../components/layout/AppLayout";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { cn } from '../utils/cn';
 
 const Profile = () => {
   const { user, login } = useAuth();
@@ -61,10 +62,11 @@ const Profile = () => {
     setPinLoading(true);
     setMessage({ type: '', text: '' });
     try {
-      await api.patch('/user/profile/pin', {
-        old_pin: pinForm.old_pin,
-        new_pin: pinForm.new_pin
-      });
+      const payload = { new_pin: pinForm.new_pin };
+      if (user?.has_pin && pinForm.old_pin) {
+        payload.old_pin = pinForm.old_pin;
+      }
+      await api.patch('/user/profile/pin', payload);
       setMessage({ type: 'success', text: 'Payment PIN updated successfully!' });
       setPinForm({ old_pin: '', new_pin: '', confirm_pin: '' });
     } catch (err) {
@@ -96,12 +98,12 @@ const Profile = () => {
               <div className="p-2 bg-primary/10 rounded-lg"><User className="w-5 h-5 text-primary" /></div>
               <h3 className="text-sm font-black text-white uppercase tracking-widest">Personal Information</h3>
             </div>
-            
+
             <form onSubmit={handleProfileSubmit} className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">First Name</label>
-                  <input 
+                  <input
                     type="text"
                     value={personalInfo.first_name}
                     readOnly
@@ -155,26 +157,34 @@ const Profile = () => {
           {/* Security - Payment PIN */}
           <Card className="bg-slate-900/40 border-border/50 p-8 space-y-8">
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-warning/10 rounded-lg"><ShieldCheck className="w-5 h-5 text-warning" /></div>
-              <h3 className="text-sm font-black text-white uppercase tracking-widest">Security - Payment PIN</h3>
+              <div className={cn("p-2 rounded-lg", user?.has_pin ? "bg-warning/10" : "bg-danger/10")}>
+                {user?.has_pin ? <ShieldCheck className="w-5 h-5 text-warning" /> : <ShieldAlert className="w-5 h-5 text-danger" />}
+              </div>
+              <h3 className="text-sm font-black text-white uppercase tracking-widest">
+                {user?.has_pin ? 'Security - Payment PIN' : 'Set Payment PIN'}
+              </h3>
             </div>
-            <p className="text-[10px] text-slate-500 font-medium">The 4-digit PIN used to authorize transactions.</p>
+            <p className="text-[10px] text-slate-500 font-medium">
+              {user?.has_pin ? 'Manage your 4-digit PIN used to authorize transactions.' : 'A 4-digit PIN is required to authorize all payments and transfers.'}
+            </p>
             
             <form onSubmit={handlePinSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Current PIN</label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
-                  <input 
-                    type="password"
-                    maxLength={4}
-                    placeholder="••••"
-                    value={pinForm.old_pin}
-                    onChange={(e) => setPinForm({ ...pinForm, old_pin: e.target.value.replace(/\D/g, '') })}
-                    className="w-full bg-slate-950 border border-border/50 rounded-xl py-3 pl-12 pr-4 text-sm font-mono font-bold text-white focus:outline-none focus:ring-1 focus:ring-primary/50 tracking-[0.5em]"
-                  />
+              {user?.has_pin && (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Current PIN</label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
+                    <input 
+                      type="password"
+                      maxLength={4}
+                      placeholder="••••"
+                      value={pinForm.old_pin}
+                      onChange={(e) => setPinForm({ ...pinForm, old_pin: e.target.value.replace(/\D/g, '') })}
+                      className="w-full bg-slate-950 border border-border/50 rounded-xl py-3 pl-12 pr-4 text-sm font-mono font-bold text-white focus:outline-none focus:ring-1 focus:ring-primary/50 tracking-[0.5em]"
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">New PIN</label>

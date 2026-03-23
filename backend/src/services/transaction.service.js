@@ -74,7 +74,7 @@ class TransactionService {
                 try {
                     const session = await sessionService.getSession(sessionId);
                     const userRepo = AppDataSource.getRepository(customers);
-                    const user = await userRepo.findOne({ where: { id: customerId }, select: ['email'] });
+                    const user = await userRepo.findOne({ where: { id: parseInt(customerId) }, select: ['id', 'email'] });
 
                     if (user && session && session.business_name && session.business_name.includes('NexStore')) {
                         console.log(`[Receipt] Sending email receipt to ${user.email} for NexStore transaction ${result.txn_id}`);
@@ -202,7 +202,7 @@ class TransactionService {
             } else {
                 // Verify OTP
                 const userRepo = AppDataSource.getRepository(customers);
-                const user = await userRepo.findOne({ where: { id: customerId } });
+                const user = await userRepo.findOne({ where: { id: parseInt(customerId) } });
 
                 const vcRepo = AppDataSource.getRepository(verification_codes);
                 const queryBuilder = vcRepo.createQueryBuilder("vc");
@@ -245,8 +245,8 @@ class TransactionService {
 
             if (!isSubscription) {
                 const customer = await queryRunner.manager.findOne(customers, {
-                    where: { id: customerId },
-                    select: ['pin_hash']
+                    where: { id: parseInt(customerId) },
+                    select: ['id', 'pin_hash']
                 });
 
                 if (!customer || !customer.pin_hash) {

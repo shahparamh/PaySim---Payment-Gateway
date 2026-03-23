@@ -60,14 +60,14 @@ const authenticate = async (req, res, next) => {
         let userRecord = null;
         if (decoded.type === 'merchant') {
             const merchantRepo = AppDataSource.getRepository(merchants);
-            userRecord = await merchantRepo.findOne({ where: { id: decoded.id }, select: ['id', 'status'] });
+            userRecord = await merchantRepo.findOne({ where: { id: parseInt(decoded.id) }, select: ['id', 'status'] });
         } else if (decoded.type === 'admin') {
             const adminRepo = AppDataSource.getRepository(admins);
-            userRecord = await adminRepo.findOne({ where: { id: decoded.id }, select: ['id', 'name'] });
+            userRecord = await adminRepo.findOne({ where: { id: parseInt(decoded.id) }, select: ['id', 'name'] });
             if (userRecord) userRecord.status = 'active'; // Admins don't have status in schema
         } else {
             const customerRepo = AppDataSource.getRepository(customers);
-            userRecord = await customerRepo.findOne({ where: { id: decoded.id }, select: ['id', 'status'] });
+            userRecord = await customerRepo.findOne({ where: { id: parseInt(decoded.id) }, select: ['id', 'status'] });
         }
 
         if (!userRecord) {

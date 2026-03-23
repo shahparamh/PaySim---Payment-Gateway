@@ -4,11 +4,13 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Button } from "../ui/Button";
 import { NotificationDropdown } from './NotificationDropdown';
+import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { cn } from '../../utils/cn';
 
 export const TopNavbar = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [isNotifOpen, setIsNotifOpen] = React.useState(false);
   const [unreadCount, setUnreadCount] = React.useState(0);
 

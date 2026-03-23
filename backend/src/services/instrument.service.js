@@ -17,7 +17,7 @@ async function createWallet(customerId, currency = 'INR', initialBalance = 0) {
     // Enforce Single Wallet Constraint
     const walletRepo = AppDataSource.getRepository(wallets);
     const existingWallet = await walletRepo.findOne({
-        where: { customer_id: customerId, status: 'active' }
+        where: { customer_id: parseInt(customerId), status: 'active' }
     });
 
     if (existingWallet) {
@@ -47,13 +47,13 @@ async function createWallet(customerId, currency = 'INR', initialBalance = 0) {
 async function getWallets(customerId) {
     const walletRepo = AppDataSource.getRepository(wallets);
     return await walletRepo.find({
-        where: { customer_id: customerId, status: 'active' }
+        where: { customer_id: parseInt(customerId), status: 'active' }
     });
 }
 
 async function topUpWallet(walletId, customerId, amount) {
     const walletRepo = AppDataSource.getRepository(wallets);
-    await walletRepo.increment({ id: parseInt(walletId), customer_id: customerId, status: 'active' }, 'balance', amount);
+    await walletRepo.increment({ id: parseInt(walletId), customer_id: parseInt(customerId), status: 'active' }, 'balance', amount);
     const wallet = await walletRepo.findOneBy({ id: parseInt(walletId) });
     return { id: walletId, new_balance: wallet.balance };
 }
@@ -105,7 +105,7 @@ async function addCreditCard(customerId, data) {
 async function getCreditCards(customerId) {
     const ccRepo = AppDataSource.getRepository(credit_cards);
     return await ccRepo.find({
-        where: { customer_id: customerId, status: 'active' },
+        where: { customer_id: parseInt(customerId), status: 'active' },
         select: ['id', 'customer_id', 'card_last_four', 'card_brand', 'cardholder_name', 'expiry_month', 'expiry_year', 'credit_limit', 'used_credit', 'status', 'created_at']
     });
 }
@@ -113,7 +113,7 @@ async function getCreditCards(customerId) {
 async function getFullCardNumber(cardId, customerId) {
     const ccRepo = AppDataSource.getRepository(credit_cards);
     const card = await ccRepo.findOne({
-        where: { id: cardId, customer_id: customerId, status: 'active' }
+        where: { id: parseInt(cardId), customer_id: parseInt(customerId), status: 'active' }
     });
 
     if (!card) {
@@ -130,10 +130,10 @@ async function getFullCardNumber(cardId, customerId) {
 
 async function removeCreditCard(cardId, customerId) {
     const ccRepo = AppDataSource.getRepository(credit_cards);
-    await ccRepo.update({ id: cardId, customer_id: customerId }, { status: 'blocked' });
+    await ccRepo.update({ id: parseInt(cardId), customer_id: parseInt(customerId) }, { status: 'blocked' });
 
     const pmRepo = AppDataSource.getRepository(payment_methods);
-    await pmRepo.update({ instrument_id: cardId, method_type: 'credit_card', customer_id: customerId }, { status: 'disabled' });
+    await pmRepo.update({ instrument_id: parseInt(cardId), method_type: 'credit_card', customer_id: parseInt(customerId) }, { status: 'disabled' });
 }
 
 // ── Bank Accounts ───────────────────────────────────────
@@ -168,7 +168,7 @@ async function addBankAccount(userId, data, role = 'customer') {
 
 async function getBankAccounts(userId, role = 'customer') {
     const bankRepo = AppDataSource.getRepository(bank_accounts);
-    const where = role === 'customer' ? { customer_id: userId } : { merchant_id: userId };
+    const where = role === 'customer' ? { customer_id: parseInt(userId) } : { merchant_id: parseInt(userId) };
     return await bankRepo.find({
         where: { ...where, status: 'active' }
     });
@@ -188,7 +188,7 @@ async function removeBankAccount(accountId, userId, role = 'customer') {
 
 async function getPaymentMethods(userId, role = 'customer') {
     const pmRepo = AppDataSource.getRepository(payment_methods);
-    const where = role === 'customer' ? { customer_id: userId } : { merchant_id: userId };
+    const where = role === 'customer' ? { customer_id: parseInt(userId) } : { merchant_id: parseInt(userId) };
     const methods = await pmRepo.find({
         where: { ...where, status: 'active' }
     });
@@ -215,8 +215,8 @@ async function setDefaultMethod(methodId, customerId) {
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
-        await queryRunner.manager.update(payment_methods, { customer_id: customerId }, { is_default: false });
-        await queryRunner.manager.update(payment_methods, { id: methodId, customer_id: customerId }, { is_default: true });
+        await queryRunner.manager.update(payment_methods, { customer_id: parseInt(customerId) }, { is_default: false });
+        await queryRunner.manager.update(payment_methods, { id: parseInt(methodId), customer_id: parseInt(customerId) }, { is_default: true });
         await queryRunner.commitTransaction();
     } catch (err) {
         await queryRunner.rollbackTransaction();
@@ -228,9 +228,9 @@ async function setDefaultMethod(methodId, customerId) {
 
 async function getCustomerInstruments(customerId) {
     const [wallets, cards, accounts] = await Promise.all([
-        getWallets(customerId),
-        getCreditCards(customerId),
-        getBankAccounts(customerId)
+        getWallets(parseInt(customerId)),
+        getCreditCards(parseInt(customerId)),
+        getBankAccounts(parseInt(customerId))
     ]);
     return { wallets, credit_cards: cards, bank_accounts: accounts };
 }
@@ -242,7 +242,7 @@ async function getCustomerInstruments(customerId) {
 async function addNetBanking(customerId, bankAccountId) {
     const bankRepo = AppDataSource.getRepository(bank_accounts);
     const account = await bankRepo.findOne({
-        where: { id: bankAccountId, customer_id: customerId, status: 'active' }
+        where: { id: parseInt(bankAccountId), customer_id: parseInt(customerId), status: 'active' }
     });
     if (!account) throw Object.assign(new Error('Bank account not found'), { statusCode: 404 });
 
@@ -314,8 +314,8 @@ async function payCreditCardBill(customerId, cardId, sourceMethodId, amount, pin
     try {
         // 0. Verify PIN
         const customer = await queryRunner.manager.findOne(customers, {
-            where: { id: customerId },
-            select: ['pin_hash']
+            where: { id: parseInt(customerId) },
+            select: ['id', 'pin_hash']
         });
         if (!customer || !customer.pin_hash) throw Object.assign(new Error('Payment PIN not set'), { statusCode: 400 });
         
@@ -324,13 +324,13 @@ async function payCreditCardBill(customerId, cardId, sourceMethodId, amount, pin
 
         // 1. Validate Card
         const card = await queryRunner.manager.findOne(credit_cards, {
-            where: { id: parseInt(cardId), customer_id: customerId, status: 'active' }
+            where: { id: parseInt(cardId), customer_id: parseInt(customerId), status: 'active' }
         });
         if (!card) throw Object.assign(new Error('Active credit card not found'), { statusCode: 404 });
 
         // 2. Validate Source Method
         const sourceMethod = await queryRunner.manager.findOne(payment_methods, {
-            where: { id: parseInt(sourceMethodId), customer_id: customerId, status: 'active' }
+            where: { id: parseInt(sourceMethodId), customer_id: parseInt(customerId), status: 'active' }
         });
         if (!sourceMethod) throw Object.assign(new Error('Payment source not found'), { statusCode: 404 });
 
@@ -346,7 +346,7 @@ async function payCreditCardBill(customerId, cardId, sourceMethodId, amount, pin
         const txnId = uuidv4();
         await queryRunner.manager.save(transactions, {
             txn_id: txnId,
-            customer_id: customerId,
+            customer_id: parseInt(customerId),
             payment_method_id: sourceMethod.id,
             amount: amount,
             currency: 'INR',
@@ -374,7 +374,7 @@ async function payCreditCardBill(customerId, cardId, sourceMethodId, amount, pin
 async function removePaymentMethod(methodId, customerId) {
     const pmRepo = AppDataSource.getRepository(payment_methods);
     const method = await pmRepo.findOne({
-        where: { id: parseInt(methodId), customer_id: customerId, status: 'active' }
+        where: { id: parseInt(methodId), customer_id: parseInt(customerId), status: 'active' }
     });
 
     if (!method) {

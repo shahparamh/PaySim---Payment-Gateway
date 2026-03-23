@@ -55,7 +55,18 @@ export const PaymentAuthModal = ({ isOpen, onClose, onVerify, type = 'pin', load
         {error && (
           <div className="mb-6 p-4 bg-danger/10 border border-danger/20 rounded-xl flex items-start space-x-3 text-danger animate-in shake duration-500">
             <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            <p className="text-xs font-bold uppercase tracking-wider leading-relaxed">{error}</p>
+            <div className="space-y-2">
+              <p className="text-xs font-bold uppercase tracking-wider leading-relaxed">{error}</p>
+              {error.toLowerCase().includes('pin not set') && (
+                <button 
+                  type="button"
+                  onClick={() => window.location.href = '/profile'}
+                  className="text-[10px] font-black underline underline-offset-4 hover:text-white uppercase transition-colors"
+                >
+                  Go to Profile to set PIN →
+                </button>
+              )}
+            </div>
           </div>
         )}
 

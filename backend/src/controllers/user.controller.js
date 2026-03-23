@@ -15,7 +15,7 @@ exports.getProfile = async (req, res, next) => {
     try {
         const userRepo = AppDataSource.getRepository(customers);
         const user = await userRepo.findOne({
-            where: { id: req.user.id },
+            where: { id: parseInt(req.user.id) },
             select: ['id', 'uuid', 'first_name', 'last_name', 'email', 'phone', 'status', 'created_at']
         });
 
@@ -37,18 +37,18 @@ exports.updateProfile = async (req, res, next) => {
         const { first_name, last_name, phone } = req.body;
 
         const userRepo = AppDataSource.getRepository(customers);
-        await userRepo.update({ id: req.user.id }, {
+        await userRepo.update({ id: parseInt(req.user.id) }, {
             first_name,
             last_name,
             phone
         });
 
-        const updatedUser = await userRepo.findOneBy({ id: req.user.id });
+        const updatedUser = await userRepo.findOneBy({ id: parseInt(req.user.id) });
 
         // Log the action
         const auditRepo = AppDataSource.getRepository(audit_logs);
         await auditRepo.save({
-            customer_id: req.user.id,
+            customer_id: parseInt(req.user.id),
             action: 'PROFILE_UPDATE',
             details: `Updated profile fields: ${Object.keys(req.body).join(', ')}`,
             ip_address: req.ip
@@ -77,9 +77,13 @@ exports.changePin = async (req, res, next) => {
 
         const userRepo = AppDataSource.getRepository(customers);
         const user = await userRepo.findOne({
-            where: { id: req.user.id },
-            select: ['pin_hash']
+            where: { id: parseInt(req.user.id) },
+            select: ['id', 'pin_hash']
         });
+
+        if (!user) {
+            return res.status(404).json(error('NOT_FOUND', 'User record not found'));
+        }
 
         // Verify old PIN if it exists
         if (user.pin_hash) {
@@ -95,12 +99,12 @@ exports.changePin = async (req, res, next) => {
         const salt = await bcrypt.genSalt(10);
         const pinHash = await bcrypt.hash(new_pin, salt);
 
-        await userRepo.update({ id: req.user.id }, { pin_hash: pinHash });
+        await userRepo.update({ id: parseInt(req.user.id) }, { pin_hash: pinHash });
 
         // Log the action
         const auditRepo = AppDataSource.getRepository(audit_logs);
         await auditRepo.save({
-            customer_id: req.user.id,
+            customer_id: parseInt(req.user.id),
             action: 'PIN_CHANGE',
             details: 'Payment PIN updated',
             ip_address: req.ip

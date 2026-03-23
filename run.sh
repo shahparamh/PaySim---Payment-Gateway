@@ -3,13 +3,14 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$SCRIPT_DIR"
 
 # 1. Cleanup existing processes
-echo "🧹 Cleaning up port 5001..."
-lsof -i :5001 -t | xargs kill -9 2>/dev/null
+echo "🧹 Cleaning up existing processes (3000, 5173)..."
+lsof -i :3000 -t | xargs kill -9 2>/dev/null
+lsof -i :5173 -t | xargs kill -9 2>/dev/null
 
 echo "================================================"
 echo "🚀 PAYSIM PLATFORM: STARTING SERVICES (v3)"
 echo "================================================"
-echo "🔗 APP URL      : http://localhost:5001"
+echo "🔗 APP URL      : http://localhost:3000"
 echo "================================================"
 
 # 2. Build Frontend

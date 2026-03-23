@@ -27,7 +27,7 @@ const { success, error } = require('../utils/responseHelper');
 exports.processPayment = async (req, res, next) => {
     try {
         const { payment_method_id, amount, pin, receiver_id, receiver_type, otp_code } = req.body;
-        const customerId = req.user.id;
+        const customerId = parseInt(req.user.id);
 
         // Input validation
         if (!payment_method_id) {
